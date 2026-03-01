@@ -1,11 +1,40 @@
 import { useState } from "react";
+import DOMPurify from "dompurify";
 import type { Assignment } from "../types";
+
+function formatRelativeTime(due: Date): string {
+  const now = new Date();
+  const diffMs = due.getTime() - now.getTime();
+  const isPast = diffMs < 0;
+  const abs = Math.abs(diffMs);
+  const minutes = Math.floor(abs / 60_000);
+  const hours = Math.floor(abs / 3_600_000);
+  const days = Math.floor(abs / 86_400_000);
+  if (days === 1) return isPast ? "yesterday" : "tomorrow";
+  if (days > 1) return isPast ? `${days}d ago` : `in ${days}d`;
+  if (hours >= 1) return isPast ? `${hours}h ago` : `in ${hours}h`;
+  return isPast ? `${minutes}m ago` : `in ${minutes}m`;
+}
 
 const URGENCY_STYLES: Record<string, string> = {
   critical: "bg-red-100 text-red-800",
   high: "bg-orange-100 text-orange-800",
   medium: "bg-blue-100 text-blue-800",
   runway: "bg-green-100 text-green-800",
+};
+
+const ROW_BG: Record<string, string> = {
+  critical: "bg-red-50",
+  high: "bg-orange-50",
+  medium: "",
+  runway: "",
+};
+
+const ROW_HOVER: Record<string, string> = {
+  critical: "hover:bg-red-100",
+  high: "hover:bg-orange-100",
+  medium: "hover:bg-gray-50",
+  runway: "hover:bg-gray-50",
 };
 
 interface Props {
@@ -29,16 +58,26 @@ export function AssignmentRow({ assignment }: Props) {
     <>
       <tr
         onClick={() => setExpanded(!expanded)}
-        className="cursor-pointer border-b border-gray-100 hover:bg-gray-50 transition-colors"
+        className={`cursor-pointer border-b border-gray-100 transition-colors ${
+          assignment.submitted ? "opacity-50" : ""
+        } ${ROW_BG[assignment.urgency] || ""} ${
+          ROW_HOVER[assignment.urgency] || "hover:bg-gray-50"
+        }`}
       >
         <td className="px-6 py-3 text-sm text-gray-600">
           {assignment.course_name}
         </td>
         <td className="px-6 py-3 text-sm font-medium text-gray-900">
-          {assignment.name}
+          {assignment.submitted && (
+            <span className="mr-1 text-green-600">&#10003;</span>
+          )}
+          <span className={assignment.submitted ? "line-through text-gray-400" : ""}>
+            {assignment.name}
+          </span>
         </td>
         <td className="px-6 py-3 text-sm text-gray-600">
-          {dateStr} {timeStr}
+          <span className="font-medium">{formatRelativeTime(due)}</span>
+          <span className="ml-1 text-gray-400">({dateStr} {timeStr})</span>
         </td>
         <td className="px-6 py-3 text-sm text-gray-600 text-right">
           {assignment.points_possible ?? "\u2014"}
@@ -58,7 +97,7 @@ export function AssignmentRow({ assignment }: Props) {
           <td colSpan={5} className="px-6 py-4">
             <div className="mb-2 text-sm text-gray-700">
               {assignment.description ? (
-                <div dangerouslySetInnerHTML={{ __html: assignment.description }} />
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(assignment.description) }} />
               ) : (
                 <p className="italic text-gray-400">No description</p>
               )}
