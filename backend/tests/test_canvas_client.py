@@ -13,6 +13,7 @@ def _make_mock_assignment(id, name, due_at, course_name="Test Course", course_id
     a.description = "<p>Description</p>"
     a.submission_types = ["online_upload"]
     a.locked_for_user = False
+    a.has_submitted_submissions = False
     return a
 
 
@@ -56,3 +57,20 @@ def test_fetch_multiple_courses(mock_canvas_cls):
     assert len(result) == 2
     course_names = {a.course_name for a in result}
     assert course_names == {"6.042", "18.06"}
+
+
+@patch("canvas_client.Canvas")
+def test_fetch_populates_submitted_field(mock_canvas_cls):
+    future = datetime.now(timezone.utc) + timedelta(days=3)
+    mock_canvas = MagicMock()
+    mock_canvas_cls.return_value = mock_canvas
+    submitted_a = _make_mock_assignment(1, "Done", future)
+    submitted_a.has_submitted_submissions = True
+    pending_a = _make_mock_assignment(2, "Pending", future)
+    pending_a.has_submitted_submissions = False
+    course = _make_mock_course(1, "Test Course", [submitted_a, pending_a])
+    mock_canvas.get_courses.return_value = [course]
+    result = fetch_all_assignments("https://canvas.mit.edu", "fake_token")
+    assert len(result) == 2
+    assert result[0].submitted is True
+    assert result[1].submitted is False

@@ -39,6 +39,7 @@ def fetch_all_assignments(api_url: str, api_token: str) -> list[Assignment]:
                         description=getattr(a, "description", "") or "",
                         submission_types=getattr(a, "submission_types", []),
                         locked=getattr(a, "locked_for_user", False),
+                        submitted=getattr(a, "has_submitted_submissions", False),
                     )
                 )
         except Exception:
