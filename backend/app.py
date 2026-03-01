@@ -76,4 +76,4 @@ if __name__ == "__main__":
         logging.warning("CANVAS_API_TOKEN not set — set it in .env")
     else:
         store.start_background_sync()
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="127.0.0.1", port=8000, debug=True)

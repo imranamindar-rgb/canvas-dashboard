@@ -78,3 +78,10 @@ def test_stats(client):
     assert data["total"] == 3
     assert data["by_urgency"]["critical"] == 1
     assert data["by_course"]["6.042"] == 2
+
+
+def test_app_binds_to_localhost():
+    with open("app.py") as f:
+        source = f.read()
+    assert '0.0.0.0' not in source
+    assert '127.0.0.1' in source
