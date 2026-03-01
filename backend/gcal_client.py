@@ -125,23 +125,36 @@ def sync_to_calendar(assignments: list[dict]) -> dict:
                 break
 
         synced = 0
+        errors = []
+
+        def _callback(request_id, response, exception):
+            nonlocal synced
+            if exception:
+                errors.append(str(exception))
+            else:
+                synced += 1
+
+        batch = service.new_batch_http_request(callback=_callback)
         for a in assignments:
             event = build_event(a)
             aid = str(a["id"])
             if aid in existing:
-                service.events().update(
+                batch.add(service.events().update(
                     calendarId="primary",
                     eventId=existing[aid],
                     body=event,
-                ).execute()
+                ))
             else:
-                service.events().insert(
+                batch.add(service.events().insert(
                     calendarId="primary",
                     body=event,
-                ).execute()
-            synced += 1
+                ))
+        batch.execute()
 
-        return {"synced": synced}
+        result = {"synced": synced}
+        if errors:
+            result["errors"] = errors
+        return result
     except Exception as e:
         logger.exception("Google Calendar sync failed")
         return {"synced": 0, "error": str(e)}

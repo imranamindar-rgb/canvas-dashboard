@@ -88,6 +88,22 @@ def test_build_event_no_points():
     assert "Points" not in event["description"]
 
 
+def _setup_batch_mock(mock_service):
+    """Create a mock batch that simulates calling the callback on execute."""
+    mock_batch = MagicMock()
+
+    def fake_execute():
+        callback = mock_service.new_batch_http_request.call_args
+        cb = callback[1].get("callback") if callback[1] else None
+        if cb:
+            for i in range(mock_batch.add.call_count):
+                cb(str(i), {}, None)
+
+    mock_batch.execute.side_effect = fake_execute
+    mock_service.new_batch_http_request.return_value = mock_batch
+    return mock_batch
+
+
 @patch("gcal_client.build")
 @patch("gcal_client.is_authorized", return_value=True)
 @patch("gcal_client.Credentials.from_authorized_user_file")
@@ -103,11 +119,14 @@ def test_sync_creates_new_events(mock_creds_load, mock_auth, mock_build):
     # No existing events
     mock_service.events().list().execute.return_value = {"items": []}
 
+    mock_batch = _setup_batch_mock(mock_service)
+
     assignments = [_make_assignment(1, "PS1", 48).to_dict()]
     result = sync_to_calendar(assignments)
 
     assert result["synced"] == 1
-    mock_service.events().insert.assert_called_once()
+    mock_batch.add.assert_called_once()
+    mock_batch.execute.assert_called_once()
 
 
 @patch("gcal_client.build")
@@ -127,9 +146,44 @@ def test_sync_updates_existing_events(mock_creds_load, mock_auth, mock_build):
         "items": [{"id": "evt_1", "extendedProperties": {"private": {"canvas_assignment_id": "1"}}}]
     }
 
+    mock_batch = _setup_batch_mock(mock_service)
+
     assignments = [_make_assignment(1, "PS1", 48).to_dict()]
     result = sync_to_calendar(assignments)
 
     assert result["synced"] == 1
-    mock_service.events().update.assert_called_once()
-    mock_service.events().insert.assert_not_called()
+    mock_batch.add.assert_called_once()
+    mock_batch.execute.assert_called_once()
+
+
+@patch("gcal_client.build")
+@patch("gcal_client.is_authorized", return_value=True)
+@patch("gcal_client.Credentials.from_authorized_user_file")
+def test_sync_uses_batch_api(mock_creds_load, mock_auth, mock_build):
+    """Test that sync with multiple assignments uses batch API correctly."""
+    mock_creds = MagicMock()
+    mock_creds.valid = True
+    mock_creds.expired = False
+    mock_creds_load.return_value = mock_creds
+
+    mock_service = MagicMock()
+    mock_build.return_value = mock_service
+
+    # One existing event (assignment 2), two new ones (1 and 3)
+    mock_service.events().list().execute.return_value = {
+        "items": [{"id": "evt_2", "extendedProperties": {"private": {"canvas_assignment_id": "2"}}}]
+    }
+
+    mock_batch = _setup_batch_mock(mock_service)
+
+    assignments = [
+        _make_assignment(1, "PS1", 24).to_dict(),
+        _make_assignment(2, "PS2", 48).to_dict(),
+        _make_assignment(3, "PS3", 72).to_dict(),
+    ]
+    result = sync_to_calendar(assignments)
+
+    assert result["synced"] == 3
+    assert mock_batch.add.call_count == 3
+    mock_batch.execute.assert_called_once()
+    mock_service.new_batch_http_request.assert_called_once()
