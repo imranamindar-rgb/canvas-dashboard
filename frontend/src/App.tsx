@@ -14,6 +14,7 @@ export default function App() {
     stats,
     health,
     loading,
+    error: fetchError,
     urgencyFilter,
     setUrgencyFilter,
     courseFilter,
@@ -90,6 +91,13 @@ export default function App() {
         onSync={syncToCalendar}
         assignments={assignments}
       />
+      {fetchError && (
+        <div className="mx-auto max-w-7xl px-4 py-2">
+          <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+            {fetchError}
+          </div>
+        </div>
+      )}
       <main className="mx-auto max-w-7xl px-4 py-4">
         <div className="rounded-lg bg-white shadow-sm">
           <AssignmentTable assignments={assignments} loading={loading} />
