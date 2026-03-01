@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { useAssignments } from "./hooks/useAssignments";
 import { useCalendar } from "./hooks/useCalendar";
+import { useEmail } from "./hooks/useEmail";
+import { EmailBar } from "./components/EmailBar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Header } from "./components/Header";
 import { SummaryBar } from "./components/SummaryBar";
@@ -24,7 +27,11 @@ export default function App() {
     refresh,
     showSubmitted,
     setShowSubmitted,
+    checkedIds,
+    toggleChecked,
   } = useAssignments();
+
+  const [groupByCourse, setGroupByCourse] = useState(false);
 
   const {
     authorized,
@@ -35,6 +42,20 @@ export default function App() {
     authorize,
     syncToCalendar,
   } = useCalendar();
+
+  const {
+    authorized: emailAuthorized,
+    loading: emailLoading,
+    syncing: emailSyncing,
+    lastResult: emailLastResult,
+    error: emailError,
+    tasks: emailTasks,
+    syncEmail,
+  } = useEmail();
+
+  const [groupBySource, setGroupBySource] = useState(false);
+
+  const allTasks = [...assignments, ...emailTasks];
 
   return (
     <ErrorBoundary>
@@ -70,7 +91,7 @@ export default function App() {
         activeCourse={courseFilter}
         onSelect={setCourseFilter}
       />
-      <div className="flex items-center gap-2 px-4 py-2 sm:px-6">
+      <div className="flex flex-wrap items-center gap-4 px-4 py-2 sm:px-6">
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
           <input
             type="checkbox"
@@ -78,7 +99,25 @@ export default function App() {
             onChange={(e) => setShowSubmitted(e.target.checked)}
             className="rounded border-gray-300"
           />
-          Show submitted assignments
+          Show submitted
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={groupByCourse}
+            onChange={(e) => setGroupByCourse(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Group by course
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={groupBySource}
+            onChange={(e) => setGroupBySource(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Group by source
         </label>
       </div>
       <CalendarBar
@@ -91,6 +130,14 @@ export default function App() {
         onSync={syncToCalendar}
         assignments={assignments}
       />
+      <EmailBar
+        authorized={emailAuthorized}
+        loading={emailLoading}
+        syncing={emailSyncing}
+        lastResult={emailLastResult}
+        error={emailError}
+        onSync={syncEmail}
+      />
       {fetchError && (
         <div className="mx-auto max-w-7xl px-4 py-2">
           <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -100,7 +147,14 @@ export default function App() {
       )}
       <main className="mx-auto max-w-7xl px-4 py-4">
         <div className="rounded-lg bg-white shadow-sm">
-          <AssignmentTable assignments={assignments} loading={loading} />
+          <AssignmentTable
+            assignments={allTasks}
+            loading={loading}
+            checkedIds={checkedIds}
+            onToggleChecked={toggleChecked}
+            groupByCourse={groupByCourse}
+            groupBySource={groupBySource}
+          />
         </div>
       </main>
     </div>

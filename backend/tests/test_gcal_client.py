@@ -31,6 +31,11 @@ def test_scopes_include_calendar_events():
     assert "https://www.googleapis.com/auth/calendar.events" in SCOPES
 
 
+def test_scopes_include_gmail_readonly():
+    from gcal_client import SCOPES
+    assert "https://www.googleapis.com/auth/gmail.readonly" in SCOPES
+
+
 def test_urgency_colors_all_defined():
     for urgency in ("critical", "high", "medium", "runway"):
         assert urgency in URGENCY_COLORS

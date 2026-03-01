@@ -2,6 +2,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Assignment, Stats, HealthStatus, Urgency } from "../types";
 
 const POLL_INTERVAL = 30_000;
+const CHECKED_KEY = "canvas-dashboard-checked";
+
+function loadCheckedIds(): Set<number | string> {
+  try {
+    const raw = localStorage.getItem(CHECKED_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch { /* ignore corrupt data */ }
+  return new Set();
+}
+
+function saveCheckedIds(ids: Set<number | string>): void {
+  localStorage.setItem(CHECKED_KEY, JSON.stringify([...ids]));
+}
 
 type ViewFilter = "today" | "week" | null;
 
@@ -15,7 +28,18 @@ export function useAssignments() {
   const [viewFilter, setViewFilter] = useState<ViewFilter>(null);
   const [showSubmitted, setShowSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<number | string>>(loadCheckedIds);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const toggleChecked = useCallback((id: number | string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      saveCheckedIds(next);
+      return next;
+    });
+  }, []);
 
   const fetchWithRetry = useCallback(
     async (url: string, signal: AbortSignal, retries = 2, delay = 1000): Promise<Response> => {
@@ -114,7 +138,7 @@ export function useAssignments() {
   // Apply client-side filters
   let filtered = showSubmitted
     ? allAssignments
-    : allAssignments.filter((a) => !a.submitted);
+    : allAssignments.filter((a) => !a.submitted && !checkedIds.has(a.id));
 
   if (urgencyFilter) {
     filtered = filtered.filter((a) => a.urgency === urgencyFilter);
@@ -146,5 +170,7 @@ export function useAssignments() {
     refresh,
     showSubmitted,
     setShowSubmitted,
+    checkedIds,
+    toggleChecked,
   };
 }

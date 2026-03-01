@@ -1,7 +1,7 @@
 export type Urgency = "critical" | "high" | "medium" | "runway";
 
 export interface Assignment {
-  id: number;
+  id: number | string;
   name: string;
   course_name: string;
   course_id: number;
@@ -13,6 +13,9 @@ export interface Assignment {
   submission_types: string[];
   locked: boolean;
   submitted: boolean;
+  source: "canvas" | "email";
+  email_subject?: string;
+  email_date?: string;
 }
 
 export interface Stats {

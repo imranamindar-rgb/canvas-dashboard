@@ -39,9 +39,11 @@ const ROW_HOVER: Record<string, string> = {
 
 interface Props {
   assignment: Assignment;
+  checked: boolean;
+  onToggleChecked: (id: number | string) => void;
 }
 
-export function AssignmentRow({ assignment }: Props) {
+export function AssignmentRow({ assignment, checked, onToggleChecked }: Props) {
   const [expanded, setExpanded] = useState(false);
   const due = new Date(assignment.due_at);
   const dateStr = due.toLocaleDateString(undefined, {
@@ -59,19 +61,33 @@ export function AssignmentRow({ assignment }: Props) {
       <tr
         onClick={() => setExpanded(!expanded)}
         className={`cursor-pointer border-b border-gray-100 transition-colors ${
-          assignment.submitted ? "opacity-50" : ""
+          checked ? "opacity-50" : ""
         } ${ROW_BG[assignment.urgency] || ""} ${
           ROW_HOVER[assignment.urgency] || "hover:bg-gray-50"
         }`}
       >
+        <td className="px-3 py-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleChecked(assignment.id); }}
+            className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-all duration-200 ${
+              checked
+                ? "border-green-500 bg-green-500 text-white"
+                : "border-gray-300 hover:border-gray-400"
+            }`}
+            aria-label={checked ? "Mark as not done" : "Mark as done"}
+          >
+            {checked && (
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </button>
+        </td>
         <td className="px-6 py-3 text-sm text-gray-600">
           {assignment.course_name}
         </td>
         <td className="px-6 py-3 text-sm font-medium text-gray-900">
-          {assignment.submitted && (
-            <span className="mr-1 text-green-600">&#10003;</span>
-          )}
-          <span className={assignment.submitted ? "line-through text-gray-400" : ""}>
+          <span className={checked ? "line-through text-gray-400" : ""}>
             {assignment.name}
           </span>
         </td>
@@ -94,7 +110,7 @@ export function AssignmentRow({ assignment }: Props) {
       </tr>
       {expanded && (
         <tr className="border-b border-gray-100 bg-gray-50">
-          <td colSpan={5} className="px-6 py-4">
+          <td colSpan={6} className="px-6 py-4">
             <div className="mb-2 text-sm text-gray-700">
               {assignment.description ? (
                 <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(assignment.description) }} />

@@ -10,7 +10,10 @@ from google.auth.transport.requests import Request
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/gmail.readonly",
+]
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "google_credentials.json")
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token.json")
 

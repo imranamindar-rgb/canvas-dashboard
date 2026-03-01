@@ -82,6 +82,20 @@ def test_stats(client):
     assert "due_this_week" in data
 
 
+def test_email_status_route(client):
+    res = client.get("/api/email/status")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "authorized" in data
+    assert "last_sync" in data
+
+def test_email_tasks_route(client):
+    res = client.get("/api/email/tasks")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert isinstance(data, list)
+
+
 def test_app_binds_to_localhost():
     with open("app.py") as f:
         source = f.read()

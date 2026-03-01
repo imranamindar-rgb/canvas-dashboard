@@ -45,4 +45,35 @@ class Assignment:
             "submission_types": self.submission_types,
             "locked": self.locked,
             "submitted": self.submitted,
+            "source": "canvas",
+        }
+
+
+@dataclass
+class EmailTask:
+    id: str
+    name: str
+    due_at: datetime
+    email_subject: str
+    email_date: datetime
+    description: str
+    html_url: str
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "course_name": "EMBA Announcements",
+            "course_id": 0,
+            "due_at": self.due_at.isoformat(),
+            "points_possible": None,
+            "urgency": classify_urgency(self.due_at),
+            "html_url": self.html_url,
+            "description": self.description,
+            "submission_types": [],
+            "locked": False,
+            "submitted": False,
+            "source": "email",
+            "email_subject": self.email_subject,
+            "email_date": self.email_date.isoformat(),
         }

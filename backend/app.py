@@ -9,6 +9,9 @@ from flask_cors import CORS
 
 from scheduler import AssignmentStore
 import gcal_client
+from email_store import EmailTaskStore
+from gmail_client import fetch_latest_announcements
+from email_extractor import extract_tasks as extract_email_tasks
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -21,6 +24,8 @@ api_token = os.environ.get("CANVAS_API_TOKEN", "")
 ttl = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
 
 store = AssignmentStore(api_url, api_token, ttl)
+email_store = EmailTaskStore()
+anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
 
 @app.route("/api/health")
@@ -70,6 +75,44 @@ def gcal_sync():
     assignments = store.get_all()
     result = gcal_client.sync_to_calendar(assignments)
     return jsonify(result)
+
+
+@app.route("/api/email/status")
+def email_status():
+    return jsonify({
+        "authorized": gcal_client.is_authorized(),
+        "last_sync": email_store.last_sync.isoformat() if email_store.last_sync else None,
+        "task_count": len(email_store.get_all()),
+        "error": email_store.error,
+    })
+
+
+@app.route("/api/email/tasks")
+def email_tasks():
+    return jsonify(email_store.get_all())
+
+
+@app.route("/api/email/sync", methods=["POST"])
+def email_sync():
+    if not anthropic_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 400
+    try:
+        email_data = fetch_latest_announcements()
+        if email_data is None:
+            return jsonify({"synced": 0, "message": "No announcement emails found"})
+
+        if not email_store.should_process(email_data["message_id"]):
+            return jsonify({
+                "synced": len(email_store.get_all()),
+                "message": "Already processed latest email",
+            })
+
+        tasks = extract_email_tasks(email_data, api_key=anthropic_key)
+        email_store.update(tasks, last_message_id=email_data["message_id"])
+        return jsonify({"synced": len(tasks), "message": f"Extracted {len(tasks)} tasks"})
+    except Exception as e:
+        email_store.error = str(e)
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
