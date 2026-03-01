@@ -78,6 +78,8 @@ def test_stats(client):
     assert data["total"] == 3
     assert data["by_urgency"]["critical"] == 1
     assert data["by_course"]["6.042"] == 2
+    assert "due_today" in data
+    assert "due_this_week" in data
 
 
 def test_app_binds_to_localhost():

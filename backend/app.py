@@ -39,7 +39,8 @@ def health():
 def assignments():
     urgency = request.args.get("urgency")
     course = request.args.get("course")
-    return jsonify(store.get_all(urgency=urgency, course=course))
+    view = request.args.get("view")
+    return jsonify(store.get_all(urgency=urgency, course=course, view=view))
 
 
 @app.route("/api/stats")
