@@ -8,6 +8,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from scheduler import AssignmentStore
+import gcal_client
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -50,6 +51,24 @@ def stats():
 def refresh():
     store.sync()
     return jsonify({"status": "ok", "assignments": store.get_all()})
+
+
+@app.route("/api/gcal/auth")
+def gcal_auth():
+    return jsonify({"authorized": gcal_client.is_authorized()})
+
+
+@app.route("/api/gcal/authorize", methods=["POST"])
+def gcal_authorize():
+    result = gcal_client.authorize()
+    return jsonify(result)
+
+
+@app.route("/api/gcal/sync", methods=["POST"])
+def gcal_sync():
+    assignments = store.get_all()
+    result = gcal_client.sync_to_calendar(assignments)
+    return jsonify(result)
 
 
 if __name__ == "__main__":
