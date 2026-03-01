@@ -17,6 +17,8 @@ export default function App() {
     courseFilter,
     setCourseFilter,
     refresh,
+    showSubmitted,
+    setShowSubmitted,
   } = useAssignments();
 
   const {
@@ -42,6 +44,17 @@ export default function App() {
         activeCourse={courseFilter}
         onSelect={setCourseFilter}
       />
+      <div className="flex items-center gap-2 px-6 py-2">
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showSubmitted}
+            onChange={(e) => setShowSubmitted(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Show submitted assignments
+        </label>
+      </div>
       <CalendarBar
         authorized={authorized}
         loading={calLoading}

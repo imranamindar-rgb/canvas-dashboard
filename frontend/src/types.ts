@@ -12,6 +12,7 @@ export interface Assignment {
   description: string;
   submission_types: string[];
   locked: boolean;
+  submitted: boolean;
 }
 
 export interface Stats {

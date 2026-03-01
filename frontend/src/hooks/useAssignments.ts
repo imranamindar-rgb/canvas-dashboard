@@ -10,6 +10,7 @@ export function useAssignments() {
   const [loading, setLoading] = useState(true);
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | null>(null);
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
+  const [showSubmitted, setShowSubmitted] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -50,8 +51,12 @@ export function useAssignments() {
     }
   }, [fetchData]);
 
+  const filteredAssignments = showSubmitted
+    ? assignments
+    : assignments.filter((a) => !a.submitted);
+
   return {
-    assignments,
+    assignments: filteredAssignments,
     stats,
     health,
     loading,
@@ -60,5 +65,7 @@ export function useAssignments() {
     courseFilter,
     setCourseFilter,
     refresh,
+    showSubmitted,
+    setShowSubmitted,
   };
 }
