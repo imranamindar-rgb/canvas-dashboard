@@ -1,5 +1,25 @@
 import type { HealthStatus } from "../types";
 
+function formatSyncTime(iso: string): { relative: string; absolute: string } {
+  const d = new Date(iso);
+  const diffMs = Date.now() - d.getTime();
+  const min = Math.floor(diffMs / 60_000);
+  const hrs = Math.floor(diffMs / 3_600_000);
+  let relative: string;
+  if (min < 1) relative = "just now";
+  else if (min < 60) relative = `${min} min ago`;
+  else if (hrs < 24) relative = `${hrs}h ago`;
+  else relative = `${Math.floor(hrs / 24)}d ago`;
+  const absolute = d.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return { relative, absolute };
+}
+
 interface Props {
   health: HealthStatus | null;
   loading: boolean;
@@ -7,9 +27,7 @@ interface Props {
 }
 
 export function Header({ health, loading, onRefresh }: Props) {
-  const lastSync = health?.last_sync
-    ? new Date(health.last_sync).toLocaleTimeString()
-    : "never";
+  const sync = health?.last_sync ? formatSyncTime(health.last_sync) : null;
 
   return (
     <header className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
@@ -17,7 +35,9 @@ export function Header({ health, loading, onRefresh }: Props) {
         <h1 className="text-2xl font-semibold text-gray-900">
           Canvas Dashboard
         </h1>
-        <p className="text-sm text-gray-500">Last sync: {lastSync}</p>
+        <p className="text-sm text-gray-500" title={sync?.absolute ?? ""}>
+          Last sync: {sync ? sync.relative : "never"}
+        </p>
       </div>
       <div className="flex items-center gap-3">
         {health?.status === "error" && (
