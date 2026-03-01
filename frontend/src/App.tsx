@@ -1,5 +1,6 @@
 import { useAssignments } from "./hooks/useAssignments";
 import { useCalendar } from "./hooks/useCalendar";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Header } from "./components/Header";
 import { SummaryBar } from "./components/SummaryBar";
 import { StatsBar } from "./components/StatsBar";
@@ -35,6 +36,7 @@ export default function App() {
   } = useCalendar();
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-gray-50">
       <Header health={health} loading={loading} onRefresh={refresh} />
       <SummaryBar stats={stats} />
@@ -86,6 +88,7 @@ export default function App() {
         error={calError}
         onAuthorize={authorize}
         onSync={syncToCalendar}
+        assignments={assignments}
       />
       <main className="mx-auto max-w-7xl px-4 py-4">
         <div className="rounded-lg bg-white shadow-sm">
@@ -93,5 +96,6 @@ export default function App() {
         </div>
       </main>
     </div>
+    </ErrorBoundary>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Assignment, Stats, HealthStatus, Urgency } from "../types";
 
 const POLL_INTERVAL = 30_000;
@@ -14,12 +14,37 @@ export function useAssignments() {
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
   const [viewFilter, setViewFilter] = useState<ViewFilter>(null);
   const [showSubmitted, setShowSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const fetchWithRetry = useCallback(
+    async (url: string, signal: AbortSignal, retries = 2, delay = 1000): Promise<Response> => {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          const res = await fetch(url, { signal });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res;
+        } catch (err) {
+          if ((err as Error).name === "AbortError") throw err;
+          if (attempt === retries) throw err;
+          await new Promise((r) => setTimeout(r, delay * 2 ** attempt));
+        }
+      }
+      throw new Error("Unreachable");
+    },
+    []
+  );
 
   const fetchData = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+
     try {
+      setError(null);
       const [assignRes, healthRes] = await Promise.all([
-        fetch("/api/assignments"),
-        fetch("/api/health"),
+        fetchWithRetry("/api/assignments", signal),
+        fetchWithRetry("/api/health", signal),
       ]);
 
       const data: Assignment[] = await assignRes.json();
@@ -58,17 +83,23 @@ export function useAssignments() {
         due_this_week: dueThisWeek,
       });
     } catch (err) {
+      if ((err as Error).name === "AbortError") return;
       console.error("Failed to fetch data:", err);
+      setError("Failed to load data. Will retry...");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchWithRetry]);
 
   useEffect(() => {
     fetchData();
     const id = setInterval(fetchData, POLL_INTERVAL);
     return () => clearInterval(id);
   }, [fetchData]);
+
+  useEffect(() => {
+    return () => abortControllerRef.current?.abort();
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -105,6 +136,7 @@ export function useAssignments() {
     stats,
     health,
     loading,
+    error,
     urgencyFilter,
     setUrgencyFilter,
     courseFilter,
