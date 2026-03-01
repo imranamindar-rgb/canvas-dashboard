@@ -41,7 +41,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-50">
       <Header health={health} loading={loading} onRefresh={refresh} />
       <SummaryBar stats={stats} />
-      <div className="flex gap-1 px-6 py-2">
+      <div className="flex gap-1 px-4 py-2 sm:px-6">
         {([
           { key: null, label: "All" },
           { key: "today" as const, label: "Due Today" },
@@ -70,7 +70,7 @@ export default function App() {
         activeCourse={courseFilter}
         onSelect={setCourseFilter}
       />
-      <div className="flex items-center gap-2 px-6 py-2">
+      <div className="flex items-center gap-2 px-4 py-2 sm:px-6">
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
           <input
             type="checkbox"

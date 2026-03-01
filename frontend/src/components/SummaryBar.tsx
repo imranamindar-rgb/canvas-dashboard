@@ -8,7 +8,7 @@ export function SummaryBar({ stats }: Props) {
   if (!stats) return null;
 
   return (
-    <div className="flex gap-6 px-6 py-3 border-b border-gray-200">
+    <div className="flex flex-col gap-3 px-4 py-3 border-b border-gray-200 sm:flex-row sm:gap-6 sm:px-6">
       <div className="flex items-baseline gap-2">
         <span className="text-2xl font-bold text-red-600">
           {stats.due_today}

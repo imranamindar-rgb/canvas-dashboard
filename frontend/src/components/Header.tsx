@@ -30,7 +30,7 @@ export function Header({ health, loading, onRefresh }: Props) {
   const sync = health?.last_sync ? formatSyncTime(health.last_sync) : null;
 
   return (
-    <header className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+    <header className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">
           Canvas Dashboard

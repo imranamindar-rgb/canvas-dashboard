@@ -15,7 +15,7 @@ interface Props {
 
 export function StatsBar({ stats, activeUrgency, onSelect }: Props) {
   return (
-    <div className="flex gap-3 px-6 py-3">
+    <div className="flex flex-wrap gap-2 px-4 py-3 sm:gap-3 sm:px-6">
       {TIERS.map(({ key, label, color, activeColor }) => {
         const count = stats?.by_urgency[key] ?? 0;
         const isActive = activeUrgency === key;

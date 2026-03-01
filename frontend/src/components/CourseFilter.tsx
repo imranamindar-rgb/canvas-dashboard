@@ -12,7 +12,7 @@ export function CourseFilter({ stats, activeCourse, onSelect }: Props) {
   if (courses.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 px-6 py-2">
+    <div className="flex flex-wrap gap-2 px-4 py-2 sm:px-6">
       <button
         onClick={() => onSelect(null)}
         className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
