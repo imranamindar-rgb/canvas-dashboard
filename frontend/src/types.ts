@@ -19,6 +19,8 @@ export interface Stats {
   total: number;
   by_urgency: Record<Urgency, number>;
   by_course: Record<string, number>;
+  due_today: number;
+  due_this_week: number;
 }
 
 export interface HealthStatus {

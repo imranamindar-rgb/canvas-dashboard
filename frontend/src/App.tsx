@@ -1,6 +1,7 @@
 import { useAssignments } from "./hooks/useAssignments";
 import { useCalendar } from "./hooks/useCalendar";
 import { Header } from "./components/Header";
+import { SummaryBar } from "./components/SummaryBar";
 import { StatsBar } from "./components/StatsBar";
 import { CourseFilter } from "./components/CourseFilter";
 import { CalendarBar } from "./components/CalendarBar";
@@ -16,6 +17,8 @@ export default function App() {
     setUrgencyFilter,
     courseFilter,
     setCourseFilter,
+    viewFilter,
+    setViewFilter,
     refresh,
     showSubmitted,
     setShowSubmitted,
@@ -34,6 +37,26 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header health={health} loading={loading} onRefresh={refresh} />
+      <SummaryBar stats={stats} />
+      <div className="flex gap-1 px-6 py-2">
+        {([
+          { key: null, label: "All" },
+          { key: "today" as const, label: "Due Today" },
+          { key: "week" as const, label: "This Week" },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={label}
+            onClick={() => setViewFilter(key)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              viewFilter === key
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <StatsBar
         stats={stats}
         activeUrgency={urgencyFilter}
