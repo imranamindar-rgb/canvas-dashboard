@@ -1,35 +1,40 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useAssignments } from "./hooks/useAssignments";
+import { Header } from "./components/Header";
+import { StatsBar } from "./components/StatsBar";
+import { CourseFilter } from "./components/CourseFilter";
+import { AssignmentTable } from "./components/AssignmentTable";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const {
+    assignments,
+    stats,
+    health,
+    loading,
+    urgencyFilter,
+    setUrgencyFilter,
+    courseFilter,
+    setCourseFilter,
+    refresh,
+  } = useAssignments();
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="min-h-screen bg-gray-50">
+      <Header health={health} loading={loading} onRefresh={refresh} />
+      <StatsBar
+        stats={stats}
+        activeUrgency={urgencyFilter}
+        onSelect={setUrgencyFilter}
+      />
+      <CourseFilter
+        stats={stats}
+        activeCourse={courseFilter}
+        onSelect={setCourseFilter}
+      />
+      <main className="mx-auto max-w-7xl px-4 py-4">
+        <div className="rounded-lg bg-white shadow-sm">
+          <AssignmentTable assignments={assignments} loading={loading} />
+        </div>
+      </main>
+    </div>
+  );
 }
-
-export default App
