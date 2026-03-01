@@ -18,7 +18,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173"])
+cors_origins = os.environ.get("CORS_ORIGIN", "http://localhost:5173").split(",")
+CORS(app, origins=cors_origins)
 
 api_url = os.environ.get("CANVAS_API_URL", "https://canvas.mit.edu")
 api_token = os.environ.get("CANVAS_API_TOKEN", "")
@@ -120,6 +121,10 @@ def email_sync():
         email_store.error = "Email sync failed"
         return jsonify({"error": "Email sync failed. Check server logs for details."}), 500
 
+
+# Start background sync when running under gunicorn
+if api_token and os.environ.get("GUNICORN_RUNNING"):
+    store.start_background_sync()
 
 if __name__ == "__main__":
     if not api_token:

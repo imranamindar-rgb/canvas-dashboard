@@ -1,0 +1,10 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+token.json
+google_credentials.json
+.DS_Store
+.codex_write_test
