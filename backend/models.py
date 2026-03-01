@@ -29,6 +29,7 @@ class Assignment:
     description: str
     submission_types: list[str] = field(default_factory=list)
     locked: bool = False
+    submitted: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -43,4 +44,5 @@ class Assignment:
             "description": self.description,
             "submission_types": self.submission_types,
             "locked": self.locked,
+            "submitted": self.submitted,
         }

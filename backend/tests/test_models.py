@@ -41,3 +41,28 @@ def test_assignment_to_dict():
     assert d["urgency"] == "critical"
     assert d["course_name"] == "6.042"
     assert isinstance(d["due_at"], str)
+
+
+def test_assignment_submitted_default_false():
+    due = datetime.now(timezone.utc) + timedelta(hours=6)
+    a = Assignment(
+        id=1, name="PS1", course_name="6.042", course_id=100,
+        due_at=due, points_possible=10.0,
+        html_url="https://canvas.mit.edu/courses/100/assignments/1",
+        description="", submission_types=["online_upload"], locked=False,
+    )
+    assert a.submitted is False
+    assert a.to_dict()["submitted"] is False
+
+
+def test_assignment_submitted_true():
+    due = datetime.now(timezone.utc) + timedelta(hours=6)
+    a = Assignment(
+        id=1, name="PS1", course_name="6.042", course_id=100,
+        due_at=due, points_possible=10.0,
+        html_url="https://canvas.mit.edu/courses/100/assignments/1",
+        description="", submission_types=["online_upload"], locked=False,
+        submitted=True,
+    )
+    assert a.submitted is True
+    assert a.to_dict()["submitted"] is True
