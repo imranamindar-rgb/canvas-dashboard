@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { api } from "../utils/api";
 
 interface CalendarState {
   authorized: boolean;
@@ -19,8 +20,7 @@ export function useCalendar() {
 
   const checkAuth = useCallback(async () => {
     try {
-      const res = await fetch("/api/gcal/auth");
-      const data = await res.json();
+      const data = await api.get<{ authorized: boolean }>("/api/gcal/auth");
       setState((s) => ({ ...s, authorized: data.authorized, loading: false }));
     } catch {
       setState((s) => ({ ...s, loading: false }));
@@ -34,25 +34,23 @@ export function useCalendar() {
   const authorize = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const res = await fetch("/api/gcal/authorize", { method: "POST" });
-      const data = await res.json();
+      const data = await api.post<{ authorized: boolean; error?: string }>("/api/gcal/authorize");
       if (data.authorized) {
         setState((s) => ({ ...s, authorized: true, loading: false }));
       } else {
-        setState((s) => ({ ...s, loading: false, error: data.error }));
+        setState((s) => ({ ...s, loading: false, error: data.error ?? null }));
       }
     } catch (err) {
-      setState((s) => ({ ...s, loading: false, error: "Authorization failed" }));
+      setState((s) => ({ ...s, loading: false, error: (err as Error).message }));
     }
   }, []);
 
   const syncToCalendar = useCallback(async () => {
     setState((s) => ({ ...s, syncing: true, error: null, lastResult: null }));
     try {
-      const res = await fetch("/api/gcal/sync", { method: "POST" });
-      const data = await res.json();
+      const data = await api.post<{ synced?: number; error?: string }>("/api/gcal/sync");
       if (data.error) {
-        setState((s) => ({ ...s, syncing: false, error: data.error }));
+        setState((s) => ({ ...s, syncing: false, error: data.error ?? null }));
       } else {
         setState((s) => ({
           ...s,
@@ -60,8 +58,8 @@ export function useCalendar() {
           lastResult: `Synced ${data.synced} assignments`,
         }));
       }
-    } catch {
-      setState((s) => ({ ...s, syncing: false, error: "Sync failed" }));
+    } catch (err) {
+      setState((s) => ({ ...s, syncing: false, error: (err as Error).message }));
     }
   }, []);
 

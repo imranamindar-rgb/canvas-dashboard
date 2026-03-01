@@ -64,7 +64,7 @@ class AssignmentStore:
     def get_stats(self) -> dict:
         all_items = self.get_all()
         active_items = [i for i in all_items if not i.get("submitted", False)]
-        urgency_counts = {"critical": 0, "high": 0, "medium": 0, "runway": 0}
+        urgency_counts = {"overdue": 0, "critical": 0, "high": 0, "medium": 0, "runway": 0}
         course_counts: dict[str, int] = {}
         now = datetime.now(timezone.utc)
         end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)

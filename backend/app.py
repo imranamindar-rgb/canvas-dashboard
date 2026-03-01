@@ -15,9 +15,10 @@ from email_extractor import extract_tasks as extract_email_tasks
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["http://localhost:5173"])
 
 api_url = os.environ.get("CANVAS_API_URL", "https://canvas.mit.edu")
 api_token = os.environ.get("CANVAS_API_TOKEN", "")
@@ -55,8 +56,12 @@ def stats():
 
 @app.route("/api/refresh", methods=["POST"])
 def refresh():
-    store.sync()
-    return jsonify({"status": "ok", "assignments": store.get_all()})
+    try:
+        store.sync()
+        return jsonify({"status": "ok", "assignments": store.get_all()})
+    except Exception as e:
+        logger.exception("Refresh failed")
+        return jsonify({"status": "error", "error": "Failed to refresh assignments. Check server logs."}), 500
 
 
 @app.route("/api/gcal/auth")
@@ -110,9 +115,10 @@ def email_sync():
         tasks = extract_email_tasks(email_data, api_key=anthropic_key)
         email_store.update(tasks, last_message_id=email_data["message_id"])
         return jsonify({"synced": len(tasks), "message": f"Extracted {len(tasks)} tasks"})
-    except Exception as e:
-        email_store.error = str(e)
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        logger.exception("Email sync failed")
+        email_store.error = "Email sync failed"
+        return jsonify({"error": "Email sync failed. Check server logs for details."}), 500
 
 
 if __name__ == "__main__":
@@ -120,4 +126,4 @@ if __name__ == "__main__":
         logging.warning("CANVAS_API_TOKEN not set — set it in .env")
     else:
         store.start_background_sync()
-    app.run(host="127.0.0.1", port=8000, debug=True)
+    app.run(host="127.0.0.1", port=8000, debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true")

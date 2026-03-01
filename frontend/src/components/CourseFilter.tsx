@@ -12,9 +12,10 @@ export function CourseFilter({ stats, activeCourse, onSelect }: Props) {
   if (courses.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 px-4 py-2 sm:px-6">
+    <div className="flex flex-wrap gap-2 px-4 py-2 sm:px-6" role="group" aria-label="Filter by course">
       <button
         onClick={() => onSelect(null)}
+        aria-pressed={activeCourse === null}
         className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
           activeCourse === null
             ? "bg-gray-900 text-white"
@@ -27,6 +28,7 @@ export function CourseFilter({ stats, activeCourse, onSelect }: Props) {
         <button
           key={name}
           onClick={() => onSelect(activeCourse === name ? null : name)}
+          aria-pressed={activeCourse === name}
           className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
             activeCourse === name
               ? "bg-gray-900 text-white"

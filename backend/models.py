@@ -7,6 +7,8 @@ from datetime import datetime, timezone, timedelta
 def classify_urgency(due_at: datetime) -> str:
     now = datetime.now(timezone.utc)
     delta = due_at - now
+    if delta < timedelta(0):
+        return "overdue"
     if delta <= timedelta(hours=24):
         return "critical"
     elif delta <= timedelta(days=3):

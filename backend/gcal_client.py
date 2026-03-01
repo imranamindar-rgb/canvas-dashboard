@@ -18,6 +18,7 @@ CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "google_credentials.j
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token.json")
 
 URGENCY_COLORS = {
+    "overdue": "8",    # gray
     "critical": "11",  # red
     "high": "6",       # orange
     "medium": "9",     # blue
@@ -114,7 +115,7 @@ def sync_to_calendar(assignments: list[dict]) -> dict:
         while True:
             resp = service.events().list(
                 calendarId="primary",
-                privateExtendedProperty="canvas_assignment_id=*" if page_token is None else None,
+                privateExtendedProperty="canvas_assignment_id=*",
                 pageToken=page_token,
                 maxResults=250,
             ).execute()

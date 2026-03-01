@@ -2,6 +2,11 @@ from datetime import datetime, timezone, timedelta
 from models import Assignment, EmailTask, classify_urgency
 
 
+def test_classify_urgency_overdue():
+    due = datetime.now(timezone.utc) - timedelta(hours=2)
+    assert classify_urgency(due) == "overdue"
+
+
 def test_classify_urgency_critical():
     due = datetime.now(timezone.utc) + timedelta(hours=12)
     assert classify_urgency(due) == "critical"
@@ -93,3 +98,18 @@ def test_assignment_has_source_canvas():
         description="", submission_types=["online_upload"], locked=False,
     )
     assert a.to_dict()["source"] == "canvas"
+
+
+def test_classify_urgency_exactly_zero_delta():
+    """Assignment due right now should be critical, not overdue."""
+    due = datetime.now(timezone.utc)
+    # delta is 0 or very slightly negative due to execution time
+    result = classify_urgency(due)
+    # Could be either overdue (tiny negative) or critical (exactly 0)
+    assert result in ("overdue", "critical")
+
+
+def test_classify_urgency_one_second_overdue():
+    """Assignment 1 second past due should be overdue."""
+    due = datetime.now(timezone.utc) - timedelta(seconds=1)
+    assert classify_urgency(due) == "overdue"

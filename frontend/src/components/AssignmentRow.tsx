@@ -1,41 +1,8 @@
 import { useState } from "react";
 import DOMPurify from "dompurify";
 import type { Assignment } from "../types";
-
-function formatRelativeTime(due: Date): string {
-  const now = new Date();
-  const diffMs = due.getTime() - now.getTime();
-  const isPast = diffMs < 0;
-  const abs = Math.abs(diffMs);
-  const minutes = Math.floor(abs / 60_000);
-  const hours = Math.floor(abs / 3_600_000);
-  const days = Math.floor(abs / 86_400_000);
-  if (days === 1) return isPast ? "yesterday" : "tomorrow";
-  if (days > 1) return isPast ? `${days}d ago` : `in ${days}d`;
-  if (hours >= 1) return isPast ? `${hours}h ago` : `in ${hours}h`;
-  return isPast ? `${minutes}m ago` : `in ${minutes}m`;
-}
-
-const URGENCY_STYLES: Record<string, string> = {
-  critical: "bg-red-100 text-red-800",
-  high: "bg-orange-100 text-orange-800",
-  medium: "bg-blue-100 text-blue-800",
-  runway: "bg-green-100 text-green-800",
-};
-
-const ROW_BG: Record<string, string> = {
-  critical: "bg-red-50",
-  high: "bg-orange-50",
-  medium: "",
-  runway: "",
-};
-
-const ROW_HOVER: Record<string, string> = {
-  critical: "hover:bg-red-100",
-  high: "hover:bg-orange-100",
-  medium: "hover:bg-gray-50",
-  runway: "hover:bg-gray-50",
-};
+import { formatRelativeTime } from "../utils/formatRelativeTime";
+import { URGENCY_STYLES, ROW_BG, ROW_HOVER } from "../utils/urgencyStyles";
 
 interface Props {
   assignment: Assignment;
@@ -59,7 +26,15 @@ export function AssignmentRow({ assignment, checked, onToggleChecked }: Props) {
   return (
     <>
       <tr
+        tabIndex={0}
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
         className={`cursor-pointer border-b border-gray-100 transition-colors ${
           checked ? "opacity-50" : ""
         } ${ROW_BG[assignment.urgency] || ""} ${

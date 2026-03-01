@@ -40,9 +40,15 @@ export function Header({ health, loading, onRefresh }: Props) {
         </p>
       </div>
       <div className="flex items-center gap-3">
-        {health?.status === "error" && (
-          <span className="text-sm text-red-600">{health.error}</span>
-        )}
+        {health?.status === "error" && (() => {
+          if (health.error) console.error("Health check error:", health.error);
+          return (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-sm text-red-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              Connection problem
+            </span>
+          );
+        })()}
         <button
           onClick={onRefresh}
           disabled={loading}

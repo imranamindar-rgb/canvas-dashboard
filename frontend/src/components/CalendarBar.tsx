@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Assignment } from "../types";
 
 interface Props {
@@ -23,6 +23,22 @@ export function CalendarBar({
   assignments,
 }: Props) {
   const [showPreview, setShowPreview] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!showPreview) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowPreview(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showPreview]);
+
+  useEffect(() => {
+    if (showPreview) {
+      cancelRef.current?.focus();
+    }
+  }, [showPreview]);
 
   return (
     <>
@@ -66,9 +82,11 @@ export function CalendarBar({
       </div>
 
       {showPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <>
+        <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowPreview(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="sync-preview-title">
           <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-semibold">Sync Preview</h2>
+            <h2 id="sync-preview-title" className="mb-4 text-lg font-semibold">Sync Preview</h2>
             <p className="mb-3 text-sm text-gray-600">
               {assignments.length} assignment{assignments.length !== 1 ? "s" : ""} will be synced to Google Calendar:
             </p>
@@ -86,6 +104,7 @@ export function CalendarBar({
             </ul>
             <div className="flex gap-3 justify-end">
               <button
+                ref={cancelRef}
                 onClick={() => setShowPreview(false)}
                 className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
               >
@@ -103,6 +122,7 @@ export function CalendarBar({
             </div>
           </div>
         </div>
+        </>
       )}
     </>
   );

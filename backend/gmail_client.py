@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import base64
+import logging
 import os
 from email.utils import parsedate_to_datetime
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+
+logger = logging.getLogger(__name__)
 
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token.json")
 SEARCH_QUERY = 'from:"MIT Executive MBA Program" subject:ANNOUNCEMENTS'
@@ -17,33 +20,55 @@ def _get_gmail_service():
     """Build authenticated Gmail API service."""
     from googleapiclient.discovery import build
 
-    creds = Credentials.from_authorized_user_file(TOKEN_FILE)
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-        with open(TOKEN_FILE, "w") as f:
-            f.write(creds.to_json())
-    return build("gmail", "v1", credentials=creds)
+    try:
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE)
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            with open(TOKEN_FILE, "w") as f:
+                f.write(creds.to_json())
+        return build("gmail", "v1", credentials=creds)
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"Gmail token file not found at {TOKEN_FILE}. "
+            "Please authorize via /api/gcal/authorize first."
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to build Gmail service: {e}") from e
 
 
 def fetch_latest_announcements() -> dict | None:
     """Fetch the most recent EMBA announcement email."""
-    service = _get_gmail_service()
-    results = (
-        service.users()
-        .messages()
-        .list(userId="me", q=SEARCH_QUERY, maxResults=1)
-        .execute()
-    )
+    try:
+        service = _get_gmail_service()
+    except RuntimeError:
+        logger.exception("Failed to initialize Gmail service")
+        raise
+
+    try:
+        results = (
+            service.users()
+            .messages()
+            .list(userId="me", q=SEARCH_QUERY, maxResults=1)
+            .execute()
+        )
+    except Exception as e:
+        logger.exception("Failed to list Gmail messages")
+        raise RuntimeError(f"Failed to list Gmail messages: {e}") from e
+
     messages = results.get("messages", [])
     if not messages:
         return None
 
-    msg = (
-        service.users()
-        .messages()
-        .get(userId="me", id=messages[0]["id"], format="full")
-        .execute()
-    )
+    try:
+        msg = (
+            service.users()
+            .messages()
+            .get(userId="me", id=messages[0]["id"], format="full")
+            .execute()
+        )
+    except Exception as e:
+        logger.exception("Failed to fetch Gmail message %s", messages[0]["id"])
+        raise RuntimeError(f"Failed to fetch Gmail message: {e}") from e
 
     headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
     subject = headers.get("Subject", "")

@@ -101,3 +101,30 @@ def test_app_binds_to_localhost():
         source = f.read()
     assert '0.0.0.0' not in source
     assert '127.0.0.1' in source
+
+
+def test_refresh_returns_error_on_failure(client, monkeypatch):
+    """Verify /api/refresh returns structured error, not raw traceback."""
+    import app as app_module
+    monkeypatch.setattr(app_module.store, "sync", lambda: (_ for _ in ()).throw(RuntimeError("Canvas down")))
+    resp = client.post("/api/refresh")
+    assert resp.status_code == 500
+    data = resp.get_json()
+    assert "error" in data
+    # Should NOT contain raw exception text
+    assert "Canvas down" not in data["error"]
+
+
+def test_email_sync_error_does_not_leak(client, monkeypatch):
+    """Verify /api/email/sync errors don't expose internal details."""
+    import app as app_module
+    monkeypatch.setattr(app_module, "anthropic_key", "fake-key")
+    monkeypatch.setattr(app_module, "fetch_latest_announcements",
+                        lambda: {"message_id": "test", "subject": "test", "date": None, "body": "test"})
+    monkeypatch.setattr(app_module.email_store, "should_process", lambda mid: True)
+    monkeypatch.setattr(app_module, "extract_email_tasks",
+                        lambda data, api_key: (_ for _ in ()).throw(RuntimeError("API key invalid")))
+    resp = client.post("/api/email/sync")
+    assert resp.status_code == 500
+    data = resp.get_json()
+    assert "API key invalid" not in data.get("error", "")

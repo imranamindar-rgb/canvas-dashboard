@@ -1,4 +1,4 @@
-export type Urgency = "critical" | "high" | "medium" | "runway";
+export type Urgency = "overdue" | "critical" | "high" | "medium" | "runway";
 
 export interface Assignment {
   id: number | string;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Assignment } from "../types";
+import { api } from "../utils/api";
 
 interface EmailState {
   authorized: boolean;
@@ -26,8 +27,12 @@ export function useEmail() {
 
   const checkStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/email/status");
-      const data = await res.json();
+      const data = await api.get<{
+        authorized: boolean;
+        last_sync: string | null;
+        task_count: number;
+        error: string | null;
+      }>("/api/email/status");
       setState((s) => ({
         ...s,
         authorized: data.authorized,
@@ -43,8 +48,7 @@ export function useEmail() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const res = await fetch("/api/email/tasks");
-      const data: Assignment[] = await res.json();
+      const data = await api.get<Assignment[]>("/api/email/tasks");
       setState((s) => ({ ...s, tasks: data }));
     } catch {
       // tasks will remain stale
@@ -54,23 +58,22 @@ export function useEmail() {
   const syncEmail = useCallback(async () => {
     setState((s) => ({ ...s, syncing: true, error: null, lastResult: null }));
     try {
-      const res = await fetch("/api/email/sync", { method: "POST" });
-      const data = await res.json();
+      const data = await api.post<{ message?: string; error?: string }>("/api/email/sync");
       if (data.error) {
-        setState((s) => ({ ...s, error: data.error, syncing: false }));
+        setState((s) => ({ ...s, error: data.error ?? null, syncing: false }));
       } else {
         setState((s) => ({
           ...s,
-          lastResult: data.message,
+          lastResult: data.message ?? null,
           syncing: false,
         }));
         await fetchTasks();
         await checkStatus();
       }
-    } catch {
+    } catch (err) {
       setState((s) => ({
         ...s,
-        error: "Failed to sync email tasks",
+        error: (err as Error).message,
         syncing: false,
       }));
     }

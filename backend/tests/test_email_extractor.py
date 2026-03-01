@@ -39,3 +39,20 @@ def test_extract_tasks_returns_empty_on_api_error(mock_anthropic_cls):
 
     tasks = extract_tasks(email_data, api_key="test-key")
     assert tasks == []
+
+
+@patch("email_extractor.anthropic.Anthropic")
+def test_extract_tasks_handles_none_date(mock_anthropic_cls):
+    """Verify extraction doesn't crash when email date is None."""
+    mock_client = MagicMock()
+    mock_anthropic_cls.return_value = mock_client
+    mock_client.messages.create.return_value.content = [
+        MagicMock(text='[]')
+    ]
+
+    result = extract_tasks(
+        {"message_id": "test", "subject": "Test", "date": None, "body": "No tasks"},
+        "fake-key"
+    )
+    # Should not crash, should return empty list
+    assert isinstance(result, list)

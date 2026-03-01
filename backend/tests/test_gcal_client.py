@@ -192,3 +192,41 @@ def test_sync_uses_batch_api(mock_creds_load, mock_auth, mock_build):
     assert mock_batch.add.call_count == 3
     mock_batch.execute.assert_called_once()
     mock_service.new_batch_http_request.assert_called_once()
+
+
+def test_sync_pagination_preserves_filter(monkeypatch):
+    """Verify privateExtendedProperty filter is applied on all pages."""
+    import gcal_client
+
+    # Track all list() calls
+    list_calls = []
+
+    class FakeEvents:
+        def list(self, **kwargs):
+            list_calls.append(kwargs)
+            call_num = len(list_calls)
+            class FakeResp:
+                def execute(self_inner):
+                    if call_num == 1:
+                        return {"items": [], "nextPageToken": "page2"}
+                    return {"items": []}
+            return FakeResp()
+
+    class FakeService:
+        def events(self):
+            return FakeEvents()
+        def new_batch_http_request(self, callback=None):
+            class FakeBatch:
+                def add(self, req): pass
+                def execute(self): pass
+            return FakeBatch()
+
+    monkeypatch.setattr(gcal_client, "is_authorized", lambda: True)
+    monkeypatch.setattr(gcal_client, "_get_service", lambda: FakeService())
+
+    result = sync_to_calendar([])
+
+    # Both page requests should have the filter
+    assert len(list_calls) == 2
+    for call in list_calls:
+        assert call.get("privateExtendedProperty") == "canvas_assignment_id=*"

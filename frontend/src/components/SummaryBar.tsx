@@ -5,7 +5,15 @@ interface Props {
 }
 
 export function SummaryBar({ stats }: Props) {
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <div className="flex gap-6 border-b border-gray-200 px-4 py-3 sm:px-6 animate-pulse">
+        <div className="h-10 w-24 rounded bg-gray-200" />
+        <div className="h-10 w-28 rounded bg-gray-200" />
+        <div className="h-10 w-20 rounded bg-gray-200" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3 border-b border-gray-200 sm:flex-row sm:gap-6 sm:px-6">

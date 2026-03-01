@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import type { Assignment, Stats, HealthStatus, Urgency } from "../types";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import type { Assignment, HealthStatus, Urgency } from "../types";
+import { api } from "../utils/api";
 
 const POLL_INTERVAL = 30_000;
 const CHECKED_KEY = "canvas-dashboard-checked";
@@ -20,44 +21,35 @@ type ViewFilter = "today" | "week" | null;
 
 export function useAssignments() {
   const [allAssignments, setAllAssignments] = useState<Assignment[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | null>(null);
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
-  const [viewFilter, setViewFilter] = useState<ViewFilter>(null);
+  const [viewFilter, setViewFilter] = useState<ViewFilter>("week");
   const [showSubmitted, setShowSubmitted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<number | string>>(loadCheckedIds);
+  const [lastCheckedId, setLastCheckedId] = useState<number | string | null>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const toggleChecked = useCallback((id: number | string) => {
     setCheckedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        setLastCheckedId(null);
+      } else {
+        next.add(id);
+        setLastCheckedId(id);
+        if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+        undoTimeoutRef.current = setTimeout(() => setLastCheckedId(null), 5000);
+      }
       saveCheckedIds(next);
       return next;
     });
   }, []);
-
-  const fetchWithRetry = useCallback(
-    async (url: string, signal: AbortSignal, retries = 2, delay = 1000): Promise<Response> => {
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-          const res = await fetch(url, { signal });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res;
-        } catch (err) {
-          if ((err as Error).name === "AbortError") throw err;
-          if (attempt === retries) throw err;
-          await new Promise((r) => setTimeout(r, delay * 2 ** attempt));
-        }
-      }
-      throw new Error("Unreachable");
-    },
-    []
-  );
 
   const fetchData = useCallback(async () => {
     abortControllerRef.current?.abort();
@@ -66,54 +58,20 @@ export function useAssignments() {
 
     try {
       setError(null);
-      const [assignRes, healthRes] = await Promise.all([
-        fetchWithRetry("/api/assignments", signal),
-        fetchWithRetry("/api/health", signal),
+      const [data, healthData] = await Promise.all([
+        api.get<Assignment[]>("/api/assignments", signal),
+        api.get<HealthStatus>("/api/health", signal),
       ]);
-
-      const data: Assignment[] = await assignRes.json();
       setAllAssignments(data);
-      setHealth(await healthRes.json());
-
-      // Compute stats client-side from active (non-submitted) assignments
-      const active = data.filter((a) => !a.submitted);
-      const urgencyCounts: Record<Urgency, number> = {
-        critical: 0,
-        high: 0,
-        medium: 0,
-        runway: 0,
-      };
-      const courseCounts: Record<string, number> = {};
-      const now = new Date();
-      const endOfToday = new Date(now);
-      endOfToday.setHours(23, 59, 59, 999);
-      const endOfWeek = new Date(now.getTime() + 7 * 86_400_000);
-      let dueToday = 0;
-      let dueThisWeek = 0;
-
-      for (const a of active) {
-        urgencyCounts[a.urgency]++;
-        courseCounts[a.course_name] = (courseCounts[a.course_name] || 0) + 1;
-        const due = new Date(a.due_at);
-        if (due <= endOfToday) dueToday++;
-        if (due <= endOfWeek) dueThisWeek++;
-      }
-
-      setStats({
-        total: active.length,
-        by_urgency: urgencyCounts,
-        by_course: courseCounts,
-        due_today: dueToday,
-        due_this_week: dueThisWeek,
-      });
+      setHealth(healthData);
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       console.error("Failed to fetch data:", err);
-      setError("Failed to load data. Will retry...");
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [fetchWithRetry]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -125,10 +83,29 @@ export function useAssignments() {
     return () => abortControllerRef.current?.abort();
   }, []);
 
+  const undoLastCheck = useCallback(() => {
+    if (lastCheckedId !== null) {
+      setCheckedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(lastCheckedId);
+        saveCheckedIds(next);
+        return next;
+      });
+      setLastCheckedId(null);
+      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    }
+  }, [lastCheckedId]);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      await fetch("/api/refresh", { method: "POST" });
+      await api.post("/api/refresh");
       await fetchData();
     } finally {
       setLoading(false);
@@ -136,31 +113,43 @@ export function useAssignments() {
   }, [fetchData]);
 
   // Apply client-side filters
-  let filtered = showSubmitted
-    ? allAssignments
-    : allAssignments.filter((a) => !a.submitted && !checkedIds.has(a.id));
-
-  if (urgencyFilter) {
-    filtered = filtered.filter((a) => a.urgency === urgencyFilter);
-  }
-  if (courseFilter) {
-    filtered = filtered.filter((a) => a.course_name === courseFilter);
-  }
-  if (viewFilter === "today") {
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-    filtered = filtered.filter((a) => new Date(a.due_at) <= endOfToday);
-  } else if (viewFilter === "week") {
-    const endOfWeek = new Date(Date.now() + 7 * 86_400_000);
-    filtered = filtered.filter((a) => new Date(a.due_at) <= endOfWeek);
-  }
+  const filtered = useMemo(() => {
+    let result = showSubmitted
+      ? allAssignments
+      : allAssignments.filter((a) => !a.submitted && !checkedIds.has(a.id));
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.course_name.toLowerCase().includes(q) ||
+          (a.description && a.description.toLowerCase().includes(q))
+      );
+    }
+    if (urgencyFilter) {
+      result = result.filter((a) => a.urgency === urgencyFilter);
+    }
+    if (courseFilter) {
+      result = result.filter((a) => a.course_name === courseFilter);
+    }
+    if (viewFilter === "today") {
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      result = result.filter((a) => new Date(a.due_at) <= endOfToday);
+    } else if (viewFilter === "week") {
+      const endOfWeek = new Date(Date.now() + 7 * 86_400_000);
+      result = result.filter((a) => new Date(a.due_at) <= endOfWeek);
+    }
+    return result;
+  }, [allAssignments, showSubmitted, checkedIds, searchQuery, urgencyFilter, courseFilter, viewFilter]);
 
   return {
     assignments: filtered,
-    stats,
     health,
     loading,
     error,
+    searchQuery,
+    setSearchQuery,
     urgencyFilter,
     setUrgencyFilter,
     courseFilter,
@@ -172,5 +161,7 @@ export function useAssignments() {
     setShowSubmitted,
     checkedIds,
     toggleChecked,
+    lastCheckedId,
+    undoLastCheck,
   };
 }
