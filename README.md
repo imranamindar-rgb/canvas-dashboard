@@ -2,37 +2,35 @@
 
 A personal dashboard for MIT EMBA students to track Canvas assignments, sync to Google Calendar, and extract tasks from email announcements.
 
-## Quick Start (Docker)
+## One-Click Deploy (Render)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+1. Click the button above
+2. Fill in your **Canvas API Token** (get from canvas.mit.edu → Account → Settings → New Access Token)
+3. Fill in your **Anthropic API Key** (get from console.anthropic.com)
+4. Click **Create Web Service**
+5. Wait ~2 minutes for the build
+6. Open your dashboard URL
+
+> Google Calendar sync and Email task extraction require additional setup (Google OAuth credentials). The dashboard works great without them — Canvas assignments are the core feature.
+
+## Docker (Local)
 
 ### Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - Python 3 (for one-time Google OAuth setup only)
-- A Canvas API token (generate at canvas.mit.edu → Account → Settings → New Access Token)
-- Google OAuth credentials (`google_credentials.json` — ask your cohort admin)
-- An Anthropic API key (for email task extraction — get from console.anthropic.com)
 
 ### Setup
 
 ```bash
-# 1. Clone the repo
 git clone <repo-url>
 cd canvas-dashboard
-
-# 2. Run setup (first run creates .env template)
-./setup.sh
-
-# 3. Edit backend/.env with your real tokens
-#    CANVAS_API_TOKEN=<your Canvas token>
-#    ANTHROPIC_API_KEY=<your Anthropic key>
-
-# 4. Run setup again (authorizes Google, builds containers, starts app)
-./setup.sh
-
-# 5. Open http://localhost
+./setup.sh          # Creates .env, authorizes Google, starts containers
 ```
 
-### Everyday Use
+### Commands
 
 ```bash
 docker compose up -d          # Start
@@ -41,13 +39,7 @@ docker compose logs -f         # View logs
 docker compose up --build -d   # Rebuild after code changes
 ```
 
-### Troubleshooting
-
-- **502 Bad Gateway** — The backend is still starting. Wait 15 seconds and refresh.
-- **Google Calendar not authorized** — Delete `backend/token.json` and re-run `./setup.sh`.
-- **Port 80 in use** — Edit `docker-compose.yml`, change `"80:80"` to `"8080:80"`, then update `CORS_ORIGIN=http://localhost:8080` in `backend/.env`.
-
-## Local Development (without Docker)
+## Local Development
 
 ```bash
 # Backend

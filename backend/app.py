@@ -4,7 +4,7 @@ import os
 import logging
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 from scheduler import AssignmentStore
@@ -18,8 +18,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-cors_origins = os.environ.get("CORS_ORIGIN", "http://localhost:5173").split(",")
-CORS(app, origins=cors_origins)
+cors_origin = os.environ.get("CORS_ORIGIN")
+if cors_origin:
+    CORS(app, origins=cors_origin.split(","))
 
 api_url = os.environ.get("CANVAS_API_URL", "https://canvas.mit.edu")
 api_token = os.environ.get("CANVAS_API_TOKEN", "")
@@ -28,6 +29,7 @@ ttl = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
 store = AssignmentStore(api_url, api_token, ttl)
 email_store = EmailTaskStore()
 anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+google_available = os.path.isfile(os.path.join(os.path.dirname(__file__), "google_credentials.json"))
 
 
 @app.route("/api/health")
@@ -67,17 +69,23 @@ def refresh():
 
 @app.route("/api/gcal/auth")
 def gcal_auth():
-    return jsonify({"authorized": gcal_client.is_authorized()})
+    if not google_available:
+        return jsonify({"authorized": False, "available": False})
+    return jsonify({"authorized": gcal_client.is_authorized(), "available": True})
 
 
 @app.route("/api/gcal/authorize", methods=["POST"])
 def gcal_authorize():
+    if not google_available:
+        return jsonify({"error": "Google integration not configured"}), 400
     result = gcal_client.authorize()
     return jsonify(result)
 
 
 @app.route("/api/gcal/sync", methods=["POST"])
 def gcal_sync():
+    if not google_available:
+        return jsonify({"error": "Google integration not configured"}), 400
     assignments = store.get_all()
     result = gcal_client.sync_to_calendar(assignments)
     return jsonify(result)
@@ -85,6 +93,8 @@ def gcal_sync():
 
 @app.route("/api/email/status")
 def email_status():
+    if not google_available:
+        return jsonify({"connected": False, "available": False, "last_sync": None, "task_count": 0, "error": None})
     return jsonify({
         "authorized": gcal_client.is_authorized(),
         "last_sync": email_store.last_sync.isoformat() if email_store.last_sync else None,
@@ -100,6 +110,8 @@ def email_tasks():
 
 @app.route("/api/email/sync", methods=["POST"])
 def email_sync():
+    if not google_available:
+        return jsonify({"error": "Google integration not configured"}), 400
     if not anthropic_key:
         return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 400
     try:
@@ -120,6 +132,23 @@ def email_sync():
         logger.exception("Email sync failed")
         email_store.error = "Email sync failed"
         return jsonify({"error": "Email sync failed. Check server logs for details."}), 500
+
+
+# Serve frontend static files (built React app)
+DIST_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+
+
+@app.route("/")
+def serve_index():
+    return send_from_directory(DIST_DIR, "index.html")
+
+
+@app.route("/<path:path>")
+def serve_static(path):
+    file_path = os.path.join(DIST_DIR, path)
+    if os.path.isfile(file_path):
+        return send_from_directory(DIST_DIR, path)
+    return send_from_directory(DIST_DIR, "index.html")
 
 
 # Start background sync when running under gunicorn
