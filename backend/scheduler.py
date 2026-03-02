@@ -38,6 +38,7 @@ class AssignmentStore:
             logger.exception("Canvas sync failed")
             with self._lock:
                 self._error = str(e)
+                self._sync_errors = []  # clear stale errors on fatal failure
 
     def update(self, assignments: list[Assignment]) -> None:
         with self._lock:

@@ -19,6 +19,7 @@ from email_extractor import extract_tasks as extract_email_tasks
 import db
 import meta_store
 from constants import (
+    CACHE_TTL_SECONDS_DEFAULT,
     EMAIL_SYNC_RATE_LIMIT,
     NEXT_ACTION_MAX_CHARS,
     NEXT_ACTION_PROMPT_NAME_MAX,
@@ -38,7 +39,7 @@ limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[])
 
 api_url = os.environ.get("CANVAS_API_URL", "https://canvas.mit.edu")
 api_token = os.environ.get("CANVAS_API_TOKEN", "")
-ttl = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
+ttl = int(os.environ.get("CACHE_TTL_SECONDS", str(CACHE_TTL_SECONDS_DEFAULT)))
 
 store = AssignmentStore(api_url, api_token, ttl)
 email_store = EmailTaskStore()
