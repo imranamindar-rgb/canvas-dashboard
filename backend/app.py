@@ -6,12 +6,16 @@ import logging
 from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, request, send_from_directory
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from scheduler import AssignmentStore
 import gcal_client
 from email_store import EmailTaskStore
 from gmail_client import fetch_latest_announcements
 from email_extractor import extract_tasks as extract_email_tasks
+import db
+import meta_store
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -20,6 +24,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 cors_origins = os.environ.get("CORS_ORIGIN", "http://localhost:5173").split(",")
 CORS(app, origins=cors_origins)
+
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[])
 
 api_url = os.environ.get("CANVAS_API_URL", "https://canvas.mit.edu")
 api_token = os.environ.get("CANVAS_API_TOKEN", "")
@@ -48,7 +54,22 @@ def assignments():
     urgency = request.args.get("urgency")
     course = request.args.get("course")
     view = request.args.get("view")
-    return jsonify(store.get_all(urgency=urgency, course=course, view=view))
+    data = store.get_all(urgency=urgency, course=course, view=view)
+    # Enrich with persistent meta
+    ids = [str(a["id"]) for a in data]
+    meta = meta_store.bulk_get_meta(ids)
+    for a in data:
+        m = meta.get(str(a["id"]), {})
+        a["next_action"] = m.get("next_action")
+        a["effort"] = m.get("effort")
+        # Override checked from DB (more trusted than localStorage)
+        if m.get("checked"):
+            a["checked"] = True
+            a["checked_at"] = m.get("checked_at")
+        else:
+            a.setdefault("checked", False)
+            a.setdefault("checked_at", None)
+    return jsonify(data)
 
 
 @app.route("/api/stats")
@@ -130,6 +151,7 @@ def email_tasks():
     return jsonify(email_store.get_all())
 
 
+@limiter.limit("10 per hour")
 @app.route("/api/email/sync", methods=["POST"])
 def email_sync():
     if not google_available:
@@ -156,6 +178,82 @@ def email_sync():
         return jsonify({"error": "Email sync failed. Check server logs for details."}), 500
 
 
+# --- Assignment metadata endpoints ---
+
+@app.route("/api/assignments/<assignment_id>/meta", methods=["GET"])
+def get_assignment_meta(assignment_id):
+    """Return {next_action, effort, checked, checked_at} for one assignment."""
+    return jsonify(meta_store.get_meta(assignment_id))
+
+
+@app.route("/api/assignments/<assignment_id>/next-action", methods=["PUT"])
+def set_next_action(assignment_id):
+    """Body: {"next_action": "string"}. Save it."""
+    body = request.get_json(force=True) or {}
+    next_action = body.get("next_action", "").strip()
+    if len(next_action) > 500:
+        return jsonify({"error": "next_action too long (max 500 chars)"}), 400
+    meta_store.set_next_action(str(assignment_id), next_action)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/assignments/<assignment_id>/effort", methods=["PUT"])
+def set_effort(assignment_id):
+    """Body: {"effort": "S"|"M"|"L"|"XL"}. Save it."""
+    body = request.get_json(force=True) or {}
+    effort = body.get("effort", "")
+    if effort not in ("S", "M", "L", "XL"):
+        return jsonify({"error": "effort must be S, M, L, or XL"}), 400
+    meta_store.set_effort(str(assignment_id), effort)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/assignments/<assignment_id>/checked", methods=["PUT"])
+def set_checked(assignment_id):
+    """Body: {"checked": true|false}. Save it."""
+    body = request.get_json(force=True) or {}
+    checked = bool(body.get("checked", False))
+    meta_store.set_checked(str(assignment_id), checked)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/assignments/<assignment_id>/next-action/suggest", methods=["POST"])
+def suggest_next_action(assignment_id):
+    """Call Claude to suggest a next action for this assignment."""
+    if not anthropic_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 400
+    body = request.get_json(force=True) or {}
+    name = body.get("name", "")
+    description = body.get("description", "")
+    course = body.get("course_name", "")
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=anthropic_key)
+        prompt = (
+            f"You are helping an MIT EMBA student identify the single next physical action for an assignment.\n\n"
+            f"Course: {course}\n"
+            f"Assignment: {name}\n"
+            f"Description: {description[:2000] if description else 'No description provided'}\n\n"
+            f"Respond with ONE sentence (max 120 chars) describing the first concrete physical action the student should take. "
+            f"Start with a verb. No preamble, no explanation. Just the action.\n"
+            f"Examples: 'Read Case pp. 12–18 and highlight 3 key tensions.' / 'Open Excel and build a DCF skeleton with placeholder values.'"
+        )
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=80,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        suggestion = message.content[0].text.strip()
+        # Auto-save
+        meta_store.set_next_action(str(assignment_id), suggestion)
+        return jsonify({"suggestion": suggestion, "saved": True})
+    except Exception:
+        logger.exception("Next action suggestion failed")
+        return jsonify({"error": "Suggestion failed. Check server logs."}), 500
+
+
 # Serve frontend static files (built React app)
 DIST_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
@@ -172,6 +270,9 @@ def serve_static(path):
         return send_from_directory(DIST_DIR, path)
     return send_from_directory(DIST_DIR, "index.html")
 
+
+# Initialize database
+db.init_db()
 
 # Start background sync when running under gunicorn
 if api_token and os.environ.get("GUNICORN_RUNNING"):
