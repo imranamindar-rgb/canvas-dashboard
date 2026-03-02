@@ -18,6 +18,13 @@ from gmail_client import fetch_latest_announcements
 from email_extractor import extract_tasks as extract_email_tasks
 import db
 import meta_store
+from constants import (
+    EMAIL_SYNC_RATE_LIMIT,
+    NEXT_ACTION_MAX_CHARS,
+    NEXT_ACTION_PROMPT_NAME_MAX,
+    NEXT_ACTION_PROMPT_DESC_MAX,
+    NEXT_ACTION_PROMPT_COURSE_MAX,
+)
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -48,6 +55,7 @@ def health():
         "last_sync": last,
         "assignment_count": len(store.get_all()),
         "error": store.error,
+        "sync_errors": store.sync_errors,
     })
 
 
@@ -153,7 +161,7 @@ def email_tasks():
     return jsonify(email_store.get_all())
 
 
-@limiter.limit("10 per hour")
+@limiter.limit(EMAIL_SYNC_RATE_LIMIT)
 @app.route("/api/email/sync", methods=["POST"])
 def email_sync():
     if not google_available:
@@ -197,8 +205,8 @@ def set_next_action(assignment_id):
     """Body: {"next_action": "string"}. Save it."""
     body = request.get_json(force=True) or {}
     next_action = body.get("next_action", "").strip()
-    if len(next_action) > 500:
-        return jsonify({"error": "next_action too long (max 500 chars)"}), 400
+    if len(next_action) > NEXT_ACTION_MAX_CHARS:
+        return jsonify({"error": f"next_action too long (max {NEXT_ACTION_MAX_CHARS} chars)"}), 400
     try:
         meta_store.set_next_action(str(assignment_id), next_action)
         return jsonify({"ok": True})
@@ -253,9 +261,9 @@ def suggest_next_action(assignment_id):
         client = anthropic.Anthropic(api_key=anthropic_key)
         prompt = (
             f"You are helping an MIT EMBA student identify the single next physical action for an assignment.\n\n"
-            f"Course: {course[:120]}\n"
-            f"Assignment: {name[:120]}\n"
-            f"Description: {description[:2000] if description else 'No description provided'}\n\n"
+            f"Course: {course[:NEXT_ACTION_PROMPT_COURSE_MAX]}\n"
+            f"Assignment: {name[:NEXT_ACTION_PROMPT_NAME_MAX]}\n"
+            f"Description: {description[:NEXT_ACTION_PROMPT_DESC_MAX] if description else 'No description provided'}\n\n"
             f"Respond with ONE sentence (max 120 chars) describing the first concrete physical action the student should take. "
             f"Start with a verb. No preamble, no explanation. Just the action.\n"
             f"Examples: 'Read Case pp. 12–18 and highlight 3 key tensions.' / 'Open Excel and build a DCF skeleton with placeholder values.'"

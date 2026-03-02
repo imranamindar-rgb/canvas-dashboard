@@ -19,16 +19,21 @@ class AssignmentStore:
         self._assignments: dict[int, Assignment] = {}
         self._last_sync: datetime | None = None
         self._error: str | None = None
+        self._sync_errors: list[str] = []
         self._lock = threading.Lock()
 
     def sync(self) -> None:
         try:
-            assignments = fetch_all_assignments(self._api_url, self._api_token)
+            assignments, sync_errors = fetch_all_assignments(self._api_url, self._api_token)
             with self._lock:
                 self._assignments = {a.id: a for a in assignments}
                 self._last_sync = datetime.now(timezone.utc)
                 self._error = None
+                self._sync_errors = sync_errors
             logger.info("Synced %d assignments from Canvas", len(assignments))
+            if sync_errors:
+                for err in sync_errors:
+                    logger.warning("Canvas course sync error: %s", err)
         except Exception as e:
             logger.exception("Canvas sync failed")
             with self._lock:
@@ -94,6 +99,10 @@ class AssignmentStore:
     @property
     def error(self) -> str | None:
         return self._error
+
+    @property
+    def sync_errors(self) -> list[str]:
+        return list(self._sync_errors)
 
     def start_background_sync(self) -> None:
         def _loop():
