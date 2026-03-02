@@ -3,6 +3,7 @@ import DOMPurify from "dompurify";
 import type { Assignment } from "../types";
 import { formatRelativeTime } from "../utils/formatRelativeTime";
 import { URGENCY_STYLES, ROW_BG, ROW_HOVER } from "../utils/urgencyStyles";
+import { getCourseColor } from "../utils/courseColors";
 
 interface Props {
   assignment: Assignment;
@@ -11,9 +12,10 @@ interface Props {
   focusedId?: string | number | null;
   expandedIds?: Set<string | number>;
   onToggleExpand?: (id: string | number) => void;
+  showEffort?: boolean;
 }
 
-export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId, expandedIds, onToggleExpand }: Props) {
+export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId, expandedIds, onToggleExpand, showEffort }: Props) {
   const [localExpanded, setLocalExpanded] = useState(false);
   // Use controlled expandedIds if provided, otherwise fall back to local state
   const expanded = expandedIds !== undefined ? expandedIds.has(assignment.id) : localExpanded;
@@ -36,6 +38,8 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
     hour: "numeric",
     minute: "2-digit",
   });
+
+  const courseColor = getCourseColor(assignment.course_name);
 
   return (
     <>
@@ -90,12 +94,21 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
           </div>
         </td>
         <td className="px-6 py-3 text-sm text-gray-600">
-          {assignment.course_name}
-        </td>
-        <td className="px-6 py-3 text-sm font-medium text-gray-900">
-          <span className={checked ? "line-through text-gray-400" : ""}>
-            {assignment.name}
+          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${courseColor.bg} ${courseColor.text} ${courseColor.border}`}>
+            {assignment.course_name}
           </span>
+        </td>
+        <td className="px-6 py-3">
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-sm font-medium ${checked ? "line-through text-gray-400" : "text-gray-900"}`}>
+              {assignment.name}
+            </span>
+            {assignment.next_action && (
+              <span className="text-xs text-gray-500 truncate max-w-xs">
+                &rarr; {assignment.next_action}
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-6 py-3 text-sm text-gray-600">
           <span className="font-medium">{formatRelativeTime(due)}</span>
@@ -104,15 +117,27 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
         <td className="px-6 py-3 text-sm text-gray-600 text-right">
           {assignment.points_possible ?? "\u2014"}
         </td>
-        <td className="px-6 py-3">
-          <span
-            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              URGENCY_STYLES[assignment.urgency]
-            }`}
-          >
-            {assignment.urgency}
-          </span>
-        </td>
+        {showEffort ? (
+          <td className="px-3 py-3 text-center">
+            {assignment.effort ? (
+              <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700">
+                {assignment.effort}
+              </span>
+            ) : (
+              <span className="text-xs text-gray-300">&mdash;</span>
+            )}
+          </td>
+        ) : (
+          <td className="px-6 py-3">
+            <span
+              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                URGENCY_STYLES[assignment.urgency]
+              }`}
+            >
+              {assignment.urgency}
+            </span>
+          </td>
+        )}
       </tr>
       {expanded && (
         <tr className="border-b border-gray-100 bg-gray-50">

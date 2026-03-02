@@ -25,6 +25,30 @@ function groupAssignmentsBySource(assignments: Assignment[]) {
   return groups;
 }
 
+const URGENCY_ORDER = ["overdue", "critical", "high", "medium", "runway"] as const;
+
+function groupAssignmentsByUrgency(assignments: Assignment[]) {
+  return URGENCY_ORDER
+    .map((urgency) => ({
+      urgency,
+      items: assignments.filter((a) => a.urgency === urgency),
+    }))
+    .filter((g) => g.items.length > 0);
+}
+
+const URGENCY_SECTION_STYLES: Record<string, {
+  headerBg: string;
+  headerText: string;
+  leftBorder: string;
+  icon: string;
+}> = {
+  overdue:  { headerBg: "bg-gray-50",  headerText: "text-gray-600",  leftBorder: "border-l-4 border-l-gray-300",   icon: "⏰" },
+  critical: { headerBg: "bg-red-50",   headerText: "text-red-700",   leftBorder: "border-l-4 border-l-red-400",    icon: "⚡" },
+  high:     { headerBg: "bg-orange-50",headerText: "text-orange-700",leftBorder: "border-l-4 border-l-orange-400", icon: "🔥" },
+  medium:   { headerBg: "bg-blue-50",  headerText: "text-blue-700",  leftBorder: "border-l-4 border-l-blue-400",   icon: "●" },
+  runway:   { headerBg: "bg-green-50", headerText: "text-green-700", leftBorder: "border-l-4 border-l-green-400",  icon: "✓" },
+};
+
 interface Props {
   assignments: Assignment[];
   loading: boolean;
@@ -32,6 +56,7 @@ interface Props {
   onToggleChecked: (id: number | string) => void;
   groupByCourse: boolean;
   groupBySource: boolean;
+  groupByUrgency?: boolean;
   hasActiveFilters?: boolean;
   searchQuery?: string;
   focusedId?: string | number | null;
@@ -39,8 +64,9 @@ interface Props {
   onToggleExpand?: (id: string | number) => void;
 }
 
-export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, hasActiveFilters, searchQuery, focusedId, expandedIds, onToggleExpand }: Props) {
+export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, groupByUrgency, hasActiveFilters, searchQuery, focusedId, expandedIds, onToggleExpand }: Props) {
   const [collapsedCourses, setCollapsedCourses] = useState<Set<string>>(new Set());
+  const [collapsedUrgency, setCollapsedUrgency] = useState<Set<string>>(() => new Set(["runway"]));
   const [sortKey, setSortKey] = useState<"course" | "name" | "due" | "points" | "urgency">("due");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -49,6 +75,15 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
+      return next;
+    });
+  };
+
+  const toggleUrgencyCollapse = (urgency: string) => {
+    setCollapsedUrgency((prev) => {
+      const next = new Set(prev);
+      if (next.has(urgency)) next.delete(urgency);
+      else next.add(urgency);
       return next;
     });
   };
@@ -135,9 +170,56 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
 
   const groups = groupByCourse ? groupAssignmentsByCourse(sorted) : null;
   const sourceGroups = groupBySource ? groupAssignmentsBySource(sorted) : null;
+  const urgencyGroups = groupByUrgency ? groupAssignmentsByUrgency(sorted) : null;
 
   const renderDesktopRows = () => {
-    if (groups) {
+    if (urgencyGroups) {
+      return urgencyGroups.map(({ urgency, items }) => {
+        const style = URGENCY_SECTION_STYLES[urgency] ?? URGENCY_SECTION_STYLES.medium;
+        return (
+          <tbody key={urgency}>
+            <tr
+              onClick={() => toggleUrgencyCollapse(urgency)}
+              className={`cursor-pointer transition-colors ${style.headerBg} hover:brightness-95`}
+            >
+              <td colSpan={6} className={`px-4 py-2.5 ${style.leftBorder}`}>
+                <div className="flex items-center gap-2">
+                  <svg
+                    className={`h-4 w-4 transition-transform duration-200 ${collapsedUrgency.has(urgency) ? "" : "rotate-90"}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span className="text-base">{style.icon}</span>
+                  <span className={`text-sm font-semibold uppercase tracking-wide ${style.headerText}`}>
+                    {urgency}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.headerBg} ${style.headerText}`}>
+                    {items.length}
+                  </span>
+                </div>
+              </td>
+            </tr>
+            {!collapsedUrgency.has(urgency) &&
+              items.map((a) => (
+                <AssignmentRow
+                  key={a.id}
+                  assignment={a}
+                  checked={a.submitted || checkedIds.has(a.id)}
+                  onToggleChecked={onToggleChecked}
+                  focusedId={focusedId}
+                  expandedIds={expandedIds}
+                  onToggleExpand={onToggleExpand}
+                  showEffort={true}
+                />
+              ))}
+          </tbody>
+        );
+      });
+    } else if (groups) {
       return groups.map(({ courseName, items }) => (
         <tbody key={courseName}>
           <tr
@@ -239,7 +321,46 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
   };
 
   const renderMobileCards = () => {
-    if (groups) {
+    if (urgencyGroups) {
+      return urgencyGroups.map(({ urgency, items }) => {
+        const style = URGENCY_SECTION_STYLES[urgency] ?? URGENCY_SECTION_STYLES.medium;
+        return (
+          <div key={urgency}>
+            <button
+              onClick={() => toggleUrgencyCollapse(urgency)}
+              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 mb-2 transition-colors ${style.headerBg}`}
+            >
+              <svg
+                className={`h-4 w-4 transition-transform duration-200 ${collapsedUrgency.has(urgency) ? "" : "rotate-90"}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="text-base">{style.icon}</span>
+              <span className={`text-sm font-semibold uppercase tracking-wide ${style.headerText}`}>{urgency}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.headerBg} ${style.headerText}`}>
+                {items.length}
+              </span>
+            </button>
+            {!collapsedUrgency.has(urgency) && (
+              <div className="space-y-3 mb-4">
+                {items.map((a) => (
+                  <AssignmentCard
+                    key={a.id}
+                    assignment={a}
+                    checked={a.submitted || checkedIds.has(a.id)}
+                    onToggleChecked={onToggleChecked}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      });
+    } else if (groups) {
       return groups.map(({ courseName, items }) => (
         <div key={courseName}>
           <button
@@ -356,11 +477,15 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                   Points {sortKey === "points" && (sortDirection === "asc" ? "\u2191" : "\u2193")}
                 </div>
               </th>
-              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => handleSort("urgency")}>
-                <div className="flex items-center gap-1">
-                  Urgency {sortKey === "urgency" && (sortDirection === "asc" ? "\u2191" : "\u2193")}
-                </div>
-              </th>
+              {groupByUrgency ? (
+                <th className="px-3 py-3 text-center">Effort</th>
+              ) : (
+                <th className="px-6 py-3 cursor-pointer select-none" onClick={() => handleSort("urgency")}>
+                  <div className="flex items-center gap-1">
+                    Urgency {sortKey === "urgency" && (sortDirection === "asc" ? "\u2191" : "\u2193")}
+                  </div>
+                </th>
+              )}
             </tr>
           </thead>
           {renderDesktopRows()}

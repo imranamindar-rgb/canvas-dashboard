@@ -16,6 +16,8 @@ export interface Assignment {
   source: "canvas" | "email";
   email_subject?: string;
   email_date?: string;
+  next_action?: string | null;
+  effort?: "S" | "M" | "L" | "XL" | null;
 }
 
 export interface Stats {

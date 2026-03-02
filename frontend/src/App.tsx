@@ -37,7 +37,12 @@ export default function App() {
     undoLastCheck,
   } = useAssignments();
 
-  const [groupByCourse, setGroupByCourse] = useState(false);
+  const [groupMode, setGroupMode] = useState<"urgency" | "course" | "source" | "none">("urgency");
+
+  // Derived group flags
+  const groupByUrgency = groupMode === "urgency";
+  const groupByCourse = groupMode === "course";
+  const groupBySource = groupMode === "source";
 
   // Keyboard navigation state
   const [focusedId, setFocusedId] = useState<string | number | null>(null);
@@ -64,17 +69,6 @@ export default function App() {
     tasks: emailTasks,
     syncEmail,
   } = useEmail();
-
-  const [groupBySource, setGroupBySource] = useState(false);
-
-  const handleGroupByCourse = (checked: boolean) => {
-    setGroupByCourse(checked);
-    if (checked) setGroupBySource(false);
-  };
-  const handleGroupBySource = (checked: boolean) => {
-    setGroupBySource(checked);
-    if (checked) setGroupByCourse(false);
-  };
 
   const allTasks = useMemo(() => [...assignments, ...emailTasks], [assignments, emailTasks]);
   const stats = useMemo(() => computeStats(allTasks), [allTasks]);
@@ -166,24 +160,23 @@ export default function App() {
           />
           Show completed
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={groupByCourse}
-            onChange={(e) => handleGroupByCourse(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          Group by course
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={groupBySource}
-            onChange={(e) => handleGroupBySource(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          Group by source
-        </label>
+        <div className="flex items-center gap-1" role="group" aria-label="Group assignments by">
+          <span className="text-xs text-gray-500 mr-1">Group by:</span>
+          {(["urgency", "course", "source", "none"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setGroupMode(mode)}
+              aria-pressed={groupMode === mode}
+              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                groupMode === mode
+                  ? "bg-gray-800 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {mode === "none" ? "None" : mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
       <CalendarBar
         authorized={authorized}
@@ -235,6 +228,7 @@ export default function App() {
             onToggleChecked={toggleChecked}
             groupByCourse={groupByCourse}
             groupBySource={groupBySource}
+            groupByUrgency={groupByUrgency}
             hasActiveFilters={hasActiveFilters}
             searchQuery={searchQuery}
             focusedId={focusedId}
