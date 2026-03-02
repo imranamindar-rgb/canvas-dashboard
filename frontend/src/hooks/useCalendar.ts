@@ -29,16 +29,37 @@ export function useCalendar() {
 
   useEffect(() => {
     checkAuth();
+
+    // Handle redirect back from Google OAuth
+    const params = new URLSearchParams(window.location.search);
+    const gcalStatus = params.get("gcal");
+    if (gcalStatus === "authorized") {
+      window.history.replaceState({}, "", window.location.pathname);
+      checkAuth();
+    } else if (gcalStatus === "error") {
+      const reason = params.get("reason") ?? "unknown";
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: reason === "access_denied"
+          ? "Google authorization was cancelled."
+          : "Google authorization failed. Please try again.",
+      }));
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, [checkAuth]);
 
   const authorize = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const data = await api.post<{ authorized: boolean; error?: string }>("/api/gcal/authorize");
-      if (data.authorized) {
+      const data = await api.post<{ auth_url?: string; authorized?: boolean; error?: string }>("/api/gcal/authorize");
+      if (data.auth_url) {
+        // Web redirect flow — navigate to Google consent screen
+        window.location.href = data.auth_url;
+      } else if (data.authorized) {
         setState((s) => ({ ...s, authorized: true, loading: false }));
       } else {
-        setState((s) => ({ ...s, loading: false, error: data.error ?? null }));
+        setState((s) => ({ ...s, loading: false, error: data.error ?? "Authorization failed" }));
       }
     } catch (err) {
       setState((s) => ({ ...s, loading: false, error: (err as Error).message }));

@@ -4,7 +4,7 @@ import os
 import logging
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, redirect, request, send_from_directory
 from flask_cors import CORS
 
 from scheduler import AssignmentStore
@@ -18,9 +18,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-cors_origin = os.environ.get("CORS_ORIGIN")
-if cors_origin:
-    CORS(app, origins=cors_origin.split(","))
+cors_origins = os.environ.get("CORS_ORIGIN", "http://localhost:5173").split(",")
+CORS(app, origins=cors_origins)
 
 api_url = os.environ.get("CANVAS_API_URL", "https://canvas.mit.edu")
 api_token = os.environ.get("CANVAS_API_TOKEN", "")
@@ -29,7 +28,7 @@ ttl = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
 store = AssignmentStore(api_url, api_token, ttl)
 email_store = EmailTaskStore()
 anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
-google_available = os.path.isfile(os.path.join(os.path.dirname(__file__), "google_credentials.json"))
+google_available = gcal_client.credentials_available()
 
 
 @app.route("/api/health")
@@ -67,6 +66,15 @@ def refresh():
         return jsonify({"status": "error", "error": "Failed to refresh assignments. Check server logs."}), 500
 
 
+@app.route("/api/canvas/status")
+def canvas_status():
+    configured = bool(api_token)
+    return jsonify({
+        "configured": configured,
+        "api_url": api_url if configured else None,
+    })
+
+
 @app.route("/api/gcal/auth")
 def gcal_auth():
     if not google_available:
@@ -77,9 +85,23 @@ def gcal_auth():
 @app.route("/api/gcal/authorize", methods=["POST"])
 def gcal_authorize():
     if not google_available:
-        return jsonify({"error": "Google integration not configured"}), 400
-    result = gcal_client.authorize()
-    return jsonify(result)
+        return jsonify({"error": "Google integration not configured. Set GOOGLE_CLIENT_JSON env var on Render, or add google_credentials.json locally."}), 400
+    redirect_uri = request.url_root.rstrip("/") + "/api/gcal/callback"
+    auth_url = gcal_client.get_auth_url(redirect_uri)
+    return jsonify({"auth_url": auth_url})
+
+
+@app.route("/api/gcal/callback")
+def gcal_callback():
+    code = request.args.get("code")
+    if not code:
+        error = request.args.get("error", "access_denied")
+        return redirect(f"/?gcal=error&reason={error}")
+    redirect_uri = request.url_root.rstrip("/") + "/api/gcal/callback"
+    result = gcal_client.handle_callback(code, redirect_uri)
+    if result.get("authorized"):
+        return redirect("/?gcal=authorized")
+    return redirect("/?gcal=error")
 
 
 @app.route("/api/gcal/sync", methods=["POST"])

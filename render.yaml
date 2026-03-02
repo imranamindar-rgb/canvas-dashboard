@@ -20,3 +20,7 @@ services:
         value: "22"
       - key: PYTHON_VERSION
         value: "3.11.0"
+      - key: GOOGLE_CLIENT_JSON
+        sync: false
+      - key: GOOGLE_TOKEN_JSON
+        sync: false
