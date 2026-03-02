@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { HealthStatus } from "../types";
 import { useCanvasStatus } from "../hooks/useCanvasStatus";
 
@@ -32,6 +32,39 @@ export function Header({ health, loading, onRefresh }: Props) {
   const sync = health?.last_sync ? formatSyncTime(health.last_sync) : null;
   const [showSetup, setShowSetup] = useState(false);
   const canvasStatus = useCanvasStatus();
+  const setupModalRef = useRef<HTMLDivElement>(null);
+
+  // Log health errors as a side effect, not during render
+  useEffect(() => {
+    if (health?.status === "error" && health.error) {
+      console.error("Health check error:", health.error);
+    }
+  }, [health]);
+
+  // Focus trap + Escape handler for setup modal
+  useEffect(() => {
+    if (!showSetup) return;
+    const modal = setupModalRef.current;
+    if (!modal) return;
+    const focusable = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") { setShowSetup(false); return; }
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    }
+    modal.addEventListener("keydown", onKeyDown);
+    return () => modal.removeEventListener("keydown", onKeyDown);
+  }, [showSetup]);
 
   return (
     <>
@@ -45,15 +78,12 @@ export function Header({ health, loading, onRefresh }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {health?.status === "error" && (() => {
-            if (health.error) console.error("Health check error:", health.error);
-            return (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-sm text-red-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                Connection problem
-              </span>
-            );
-          })()}
+          {health?.status === "error" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-sm text-red-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              Connection problem
+            </span>
+          )}
           {health?.sync_errors && health.sync_errors.length > 0 && (
             <span
               title={`Sync warnings: ${health.sync_errors.join("; ")}`}
@@ -96,9 +126,15 @@ export function Header({ health, loading, onRefresh }: Props) {
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowSetup(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div
+              ref={setupModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="setup-title"
+              className="w-full max-w-lg rounded-lg bg-white shadow-xl"
+            >
               <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                <h2 className="text-lg font-semibold text-gray-900">Setup &amp; Configuration</h2>
+                <h2 id="setup-title" className="text-lg font-semibold text-gray-900">Setup &amp; Configuration</h2>
                 <button onClick={() => setShowSetup(false)} className="text-gray-400 hover:text-gray-600">
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />

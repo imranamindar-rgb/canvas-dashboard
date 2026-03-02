@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useAssignments } from "./hooks/useAssignments";
 import { useCalendar } from "./hooks/useCalendar";
 import { useEmail } from "./hooks/useEmail";
@@ -113,6 +113,12 @@ export default function App() {
     onFocusSearch: handleFocusSearch,
     onRefresh: refresh,
   });
+
+  // Remove the initial loading spinner after first paint
+  useEffect(() => {
+    const loader = document.getElementById("app-loader");
+    if (loader) loader.remove();
+  }, []); // empty deps — run once after first paint
 
   return (
     <ErrorBoundary>

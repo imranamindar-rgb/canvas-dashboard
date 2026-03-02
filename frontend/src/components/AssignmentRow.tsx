@@ -41,7 +41,6 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
     <>
       <tr
         tabIndex={0}
-        aria-expanded={expanded}
         onClick={handleToggleExpand}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -56,21 +55,39 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
         }${isFocused ? " ring-2 ring-inset ring-indigo-500" : ""}`}
       >
         <td className="px-3 py-3">
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggleChecked(assignment.id); }}
-            className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-all duration-200 ${
-              checked
-                ? "border-green-500 bg-green-500 text-white"
-                : "border-gray-300 hover:border-gray-400"
-            }`}
-            aria-label={checked ? "Mark as not done" : "Mark as done"}
-          >
-            {checked && (
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleChecked(assignment.id); }}
+              className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-all duration-200 ${
+                checked
+                  ? "border-green-500 bg-green-500 text-white"
+                  : "border-gray-300 hover:border-gray-400"
+              }`}
+              aria-label={checked ? "Mark as not done" : "Mark as done"}
+            >
+              {checked && (
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleToggleExpand(); }}
+              aria-expanded={expanded}
+              aria-label={expanded ? "Collapse assignment" : "Expand assignment"}
+              className="flex h-4 w-4 items-center justify-center text-gray-400 hover:text-gray-600"
+            >
+              <svg
+                className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
-            )}
-          </button>
+            </button>
+          </div>
         </td>
         <td className="px-6 py-3 text-sm text-gray-600">
           {assignment.course_name}

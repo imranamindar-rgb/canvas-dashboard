@@ -79,6 +79,7 @@ export function CalendarBar({
           <button
             onClick={() => setShowPreview(true)}
             disabled={syncing}
+            aria-label="Sync assignments to Google Calendar"
             className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50"
           >
             {syncing ? "Syncing..." : "Sync to Calendar"}
