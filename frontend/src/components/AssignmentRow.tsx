@@ -8,10 +8,24 @@ interface Props {
   assignment: Assignment;
   checked: boolean;
   onToggleChecked: (id: number | string) => void;
+  focusedId?: string | number | null;
+  expandedIds?: Set<string | number>;
+  onToggleExpand?: (id: string | number) => void;
 }
 
-export function AssignmentRow({ assignment, checked, onToggleChecked }: Props) {
-  const [expanded, setExpanded] = useState(false);
+export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId, expandedIds, onToggleExpand }: Props) {
+  const [localExpanded, setLocalExpanded] = useState(false);
+  // Use controlled expandedIds if provided, otherwise fall back to local state
+  const expanded = expandedIds !== undefined ? expandedIds.has(assignment.id) : localExpanded;
+  const isFocused = focusedId !== undefined && focusedId !== null && focusedId === assignment.id;
+
+  const handleToggleExpand = () => {
+    if (onToggleExpand) {
+      onToggleExpand(assignment.id);
+    } else {
+      setLocalExpanded((prev) => !prev);
+    }
+  };
   const due = new Date(assignment.due_at);
   const dateStr = due.toLocaleDateString(undefined, {
     weekday: "short",
@@ -28,18 +42,18 @@ export function AssignmentRow({ assignment, checked, onToggleChecked }: Props) {
       <tr
         tabIndex={0}
         aria-expanded={expanded}
-        onClick={() => setExpanded(!expanded)}
+        onClick={handleToggleExpand}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            setExpanded(!expanded);
+            handleToggleExpand();
           }
         }}
         className={`cursor-pointer border-b border-gray-100 transition-colors ${
           checked ? "opacity-50" : ""
         } ${ROW_BG[assignment.urgency] || ""} ${
           ROW_HOVER[assignment.urgency] || "hover:bg-gray-50"
-        }`}
+        }${isFocused ? " ring-2 ring-inset ring-indigo-500" : ""}`}
       >
         <td className="px-3 py-3">
           <button

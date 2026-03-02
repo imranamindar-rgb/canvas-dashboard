@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../utils/api";
 
+const GCAL_LAST_SYNC_KEY = "gcal-last-sync";
+
 interface CalendarState {
   authorized: boolean;
   loading: boolean;
   syncing: boolean;
   lastResult: string | null;
   error: string | null;
+  lastCalSync: string | null;
 }
 
 export function useCalendar() {
@@ -16,6 +19,7 @@ export function useCalendar() {
     syncing: false,
     lastResult: null,
     error: null,
+    lastCalSync: localStorage.getItem(GCAL_LAST_SYNC_KEY),
   });
 
   const checkAuth = useCallback(async () => {
@@ -73,10 +77,13 @@ export function useCalendar() {
       if (data.error) {
         setState((s) => ({ ...s, syncing: false, error: data.error ?? null }));
       } else {
+        const now = new Date().toISOString();
+        localStorage.setItem(GCAL_LAST_SYNC_KEY, now);
         setState((s) => ({
           ...s,
           syncing: false,
           lastResult: `Synced ${data.synced} assignments`,
+          lastCalSync: now,
         }));
       }
     } catch (err) {
@@ -90,6 +97,7 @@ export function useCalendar() {
     syncing: state.syncing,
     lastResult: state.lastResult,
     error: state.error,
+    lastCalSync: state.lastCalSync,
     authorize,
     syncToCalendar,
   };

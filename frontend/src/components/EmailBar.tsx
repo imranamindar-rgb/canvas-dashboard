@@ -42,6 +42,7 @@ export function EmailBar({
         <button
           onClick={onAuthorize}
           disabled={loading}
+          aria-label="Authorize Google for Email Tasks"
           className="rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-purple-500 disabled:opacity-50"
         >
           Authorize Google

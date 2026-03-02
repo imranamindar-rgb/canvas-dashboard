@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import type { Assignment } from "../types";
 
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  return `${Math.floor(min / 60)}h ago`;
+}
+
 interface Props {
   authorized: boolean;
   loading: boolean;
@@ -10,6 +18,7 @@ interface Props {
   onAuthorize: () => void;
   onSync: () => void;
   assignments: Assignment[];
+  lastCalSync?: string | null;
 }
 
 export function CalendarBar({
@@ -21,6 +30,7 @@ export function CalendarBar({
   onAuthorize,
   onSync,
   assignments,
+  lastCalSync,
 }: Props) {
   const [showPreview, setShowPreview] = useState(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -58,6 +68,7 @@ export function CalendarBar({
           <button
             onClick={onAuthorize}
             disabled={loading}
+            aria-label="Authorize Google Calendar"
             className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
           >
             {loading ? "Authorizing..." : "Authorize Google"}
@@ -72,6 +83,12 @@ export function CalendarBar({
           >
             {syncing ? "Syncing..." : "Sync to Calendar"}
           </button>
+        )}
+
+        {authorized && lastCalSync && (
+          <span className="text-xs text-gray-400">
+            Last synced {formatRelativeTime(lastCalSync)}
+          </span>
         )}
 
         {lastResult && (

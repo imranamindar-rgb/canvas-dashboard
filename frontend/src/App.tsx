@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useAssignments } from "./hooks/useAssignments";
 import { useCalendar } from "./hooks/useCalendar";
 import { useEmail } from "./hooks/useEmail";
+import { useKeyboardNav } from "./hooks/useKeyboardNav";
 import { computeStats } from "./utils/computeStats";
 import { EmailBar } from "./components/EmailBar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -38,12 +39,18 @@ export default function App() {
 
   const [groupByCourse, setGroupByCourse] = useState(false);
 
+  // Keyboard navigation state
+  const [focusedId, setFocusedId] = useState<string | number | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string | number>>(new Set());
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const {
     authorized,
     loading: calLoading,
     syncing,
     lastResult,
     error: calError,
+    lastCalSync,
     authorize,
     syncToCalendar,
   } = useCalendar();
@@ -73,11 +80,45 @@ export default function App() {
   const stats = useMemo(() => computeStats(allTasks), [allTasks]);
   const hasActiveFilters = !!(urgencyFilter || courseFilter || viewFilter);
 
+  const focusedIndex = useMemo(() => {
+    if (focusedId === null) return -1;
+    return allTasks.findIndex((a) => a.id === focusedId);
+  }, [focusedId, allTasks]);
+
+  const handleSetFocusedIndex = useCallback((i: number) => {
+    if (i >= 0 && i < allTasks.length) {
+      setFocusedId(allTasks[i].id);
+    }
+  }, [allTasks]);
+
+  const handleToggleExpand = useCallback((id: string | number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleFocusSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  useKeyboardNav({
+    assignments: allTasks,
+    focusedIndex,
+    setFocusedIndex: handleSetFocusedIndex,
+    onToggleChecked: toggleChecked,
+    onToggleExpand: handleToggleExpand,
+    onFocusSearch: handleFocusSearch,
+    onRefresh: refresh,
+  });
+
   return (
     <ErrorBoundary>
     <div className="min-h-screen bg-gray-50">
       <Header health={health} loading={loading} onRefresh={refresh} />
-      <SearchBar query={searchQuery} onChange={setSearchQuery} />
+      <SearchBar query={searchQuery} onChange={setSearchQuery} inputRef={searchInputRef} />
       <SummaryBar stats={stats} />
       <div className="flex gap-1 px-4 py-2 sm:px-6" role="group" aria-label="Filter by time range">
         {([
@@ -147,6 +188,7 @@ export default function App() {
         onAuthorize={authorize}
         onSync={syncToCalendar}
         assignments={assignments}
+        lastCalSync={lastCalSync}
       />
       <EmailBar
         authorized={emailAuthorized}
@@ -189,6 +231,9 @@ export default function App() {
             groupBySource={groupBySource}
             hasActiveFilters={hasActiveFilters}
             searchQuery={searchQuery}
+            focusedId={focusedId}
+            expandedIds={expandedIds}
+            onToggleExpand={handleToggleExpand}
           />
         </div>
       </main>

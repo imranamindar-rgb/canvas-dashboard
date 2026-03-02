@@ -7,6 +7,14 @@
     <title>Canvas Dashboard</title>
   </head>
   <body>
+    <div id="app-loader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#F8FAFC;z-index:9999;font-family:system-ui,sans-serif;flex-direction:column;gap:16px;">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation:spin 0.8s linear infinite;">
+        <circle cx="20" cy="20" r="16" stroke="#E2E8F0" stroke-width="4"/>
+        <path d="M36 20A16 16 0 0 0 20 4" stroke="#6366F1" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <span style="color:#64748B;font-size:14px;font-weight:500;">Canvas Dashboard</span>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

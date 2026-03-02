@@ -31,4 +31,5 @@ export interface HealthStatus {
   last_sync: string | null;
   assignment_count: number;
   error: string | null;
+  sync_errors: string[];
 }

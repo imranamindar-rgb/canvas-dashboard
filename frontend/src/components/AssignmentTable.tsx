@@ -34,9 +34,12 @@ interface Props {
   groupBySource: boolean;
   hasActiveFilters?: boolean;
   searchQuery?: string;
+  focusedId?: string | number | null;
+  expandedIds?: Set<string | number>;
+  onToggleExpand?: (id: string | number) => void;
 }
 
-export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, hasActiveFilters, searchQuery }: Props) {
+export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, hasActiveFilters, searchQuery, focusedId, expandedIds, onToggleExpand }: Props) {
   const [collapsedCourses, setCollapsedCourses] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<"course" | "name" | "due" | "points" | "urgency">("due");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -168,6 +171,9 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                 assignment={a}
                 checked={a.submitted || checkedIds.has(a.id)}
                 onToggleChecked={onToggleChecked}
+                focusedId={focusedId}
+                expandedIds={expandedIds}
+                onToggleExpand={onToggleExpand}
               />
             ))}
         </tbody>
@@ -207,6 +213,9 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                 assignment={a}
                 checked={a.submitted || checkedIds.has(a.id)}
                 onToggleChecked={onToggleChecked}
+                focusedId={focusedId}
+                expandedIds={expandedIds}
+                onToggleExpand={onToggleExpand}
               />
             ))}
         </tbody>
@@ -220,6 +229,9 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
             assignment={a}
             checked={a.submitted || checkedIds.has(a.id)}
             onToggleChecked={onToggleChecked}
+            focusedId={focusedId}
+            expandedIds={expandedIds}
+            onToggleExpand={onToggleExpand}
           />
         ))}
       </tbody>

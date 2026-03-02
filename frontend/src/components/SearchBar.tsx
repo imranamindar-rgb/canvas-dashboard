@@ -1,9 +1,12 @@
+import React from "react";
+
 interface Props {
   query: string;
   onChange: (query: string) => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
-export function SearchBar({ query, onChange }: Props) {
+export function SearchBar({ query, onChange, inputRef }: Props) {
   return (
     <div className="relative mx-auto max-w-7xl px-4 py-3 sm:px-6">
       <div className="relative">
@@ -22,6 +25,7 @@ export function SearchBar({ query, onChange }: Props) {
           />
         </svg>
         <input
+          ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => onChange(e.target.value)}

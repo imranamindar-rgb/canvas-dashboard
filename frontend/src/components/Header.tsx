@@ -54,6 +54,15 @@ export function Header({ health, loading, onRefresh }: Props) {
               </span>
             );
           })()}
+          {health?.sync_errors && health.sync_errors.length > 0 && (
+            <span
+              title={`Sync warnings: ${health.sync_errors.join("; ")}`}
+              className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-0.5 text-sm text-yellow-700 cursor-help"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+              {health.sync_errors.length} course{health.sync_errors.length > 1 ? "s" : ""} with sync issues
+            </span>
+          )}
           {canvasStatus && !canvasStatus.configured && (
             <button
               onClick={() => setShowSetup(true)}
