@@ -9,6 +9,8 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+import anthropic
+
 from scheduler import AssignmentStore
 import gcal_client
 from email_store import EmailTaskStore
@@ -183,7 +185,11 @@ def email_sync():
 @app.route("/api/assignments/<assignment_id>/meta", methods=["GET"])
 def get_assignment_meta(assignment_id):
     """Return {next_action, effort, checked, checked_at} for one assignment."""
-    return jsonify(meta_store.get_meta(assignment_id))
+    try:
+        return jsonify(meta_store.get_meta(assignment_id))
+    except Exception:
+        logger.exception("Failed to get meta for %s", assignment_id)
+        return jsonify({"error": "Failed to load. Please try again."}), 500
 
 
 @app.route("/api/assignments/<assignment_id>/next-action", methods=["PUT"])
@@ -193,8 +199,12 @@ def set_next_action(assignment_id):
     next_action = body.get("next_action", "").strip()
     if len(next_action) > 500:
         return jsonify({"error": "next_action too long (max 500 chars)"}), 400
-    meta_store.set_next_action(str(assignment_id), next_action)
-    return jsonify({"ok": True})
+    try:
+        meta_store.set_next_action(str(assignment_id), next_action)
+        return jsonify({"ok": True})
+    except Exception:
+        logger.exception("Failed to save next action for %s", assignment_id)
+        return jsonify({"error": "Failed to save. Please try again."}), 500
 
 
 @app.route("/api/assignments/<assignment_id>/effort", methods=["PUT"])
@@ -204,17 +214,28 @@ def set_effort(assignment_id):
     effort = body.get("effort", "")
     if effort not in ("S", "M", "L", "XL"):
         return jsonify({"error": "effort must be S, M, L, or XL"}), 400
-    meta_store.set_effort(str(assignment_id), effort)
-    return jsonify({"ok": True})
+    try:
+        meta_store.set_effort(str(assignment_id), effort)
+        return jsonify({"ok": True})
+    except Exception:
+        logger.exception("Failed to save effort for %s", assignment_id)
+        return jsonify({"error": "Failed to save. Please try again."}), 500
 
 
 @app.route("/api/assignments/<assignment_id>/checked", methods=["PUT"])
 def set_checked(assignment_id):
     """Body: {"checked": true|false}. Save it."""
     body = request.get_json(force=True) or {}
-    checked = bool(body.get("checked", False))
-    meta_store.set_checked(str(assignment_id), checked)
-    return jsonify({"ok": True})
+    checked_raw = body.get("checked")
+    if not isinstance(checked_raw, bool):
+        return jsonify({"error": "checked must be a boolean"}), 400
+    checked = checked_raw
+    try:
+        meta_store.set_checked(str(assignment_id), checked)
+        return jsonify({"ok": True})
+    except Exception:
+        logger.exception("Failed to save checked for %s", assignment_id)
+        return jsonify({"error": "Failed to save. Please try again."}), 500
 
 
 @app.route("/api/assignments/<assignment_id>/next-action/suggest", methods=["POST"])
@@ -229,12 +250,11 @@ def suggest_next_action(assignment_id):
     if not name:
         return jsonify({"error": "name required"}), 400
     try:
-        import anthropic
         client = anthropic.Anthropic(api_key=anthropic_key)
         prompt = (
             f"You are helping an MIT EMBA student identify the single next physical action for an assignment.\n\n"
-            f"Course: {course}\n"
-            f"Assignment: {name}\n"
+            f"Course: {course[:120]}\n"
+            f"Assignment: {name[:120]}\n"
             f"Description: {description[:2000] if description else 'No description provided'}\n\n"
             f"Respond with ONE sentence (max 120 chars) describing the first concrete physical action the student should take. "
             f"Start with a verb. No preamble, no explanation. Just the action.\n"
