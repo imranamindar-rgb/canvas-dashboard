@@ -13,7 +13,7 @@ from google.oauth2.credentials import Credentials
 logger = logging.getLogger(__name__)
 
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token.json")
-SEARCH_QUERY = 'from:"MIT Executive MBA Program" subject:ANNOUNCEMENTS'
+SEARCH_QUERY = 'from:"MIT Executive MBA Program" subject:ANNOUNCEMENTS newer_than:21d'
 
 
 def _get_gmail_service():
