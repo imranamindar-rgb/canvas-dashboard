@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: canvas-dashboard
+    runtime: python
+    plan: free
+    buildCommand: ./render-build.sh
+    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 app:app
+    envVars:
+      - key: CANVAS_API_URL
+        value: https://canvas.mit.edu
+      - key: CANVAS_API_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CACHE_TTL_SECONDS
+        value: "300"
+      - key: GUNICORN_RUNNING
+        value: "1"
+      - key: NODE_VERSION
+        value: "22"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
