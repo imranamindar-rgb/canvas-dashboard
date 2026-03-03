@@ -1,4 +1,6 @@
 """CRUD for assignment_meta table."""
+from __future__ import annotations
+
 from datetime import datetime, timezone
 
 from db import cursor
