@@ -38,9 +38,10 @@ def test_fetch_excludes_undated_assignments(mock_canvas_cls):
     course = _make_mock_course(1, "Test Course", assignments)
     mock_canvas.get_courses.return_value = [course]
 
-    result = fetch_all_assignments("https://canvas.mit.edu", "fake_token")
-    assert len(result) == 1
-    assert result[0].name == "Dated"
+    assignments, errors = fetch_all_assignments("https://canvas.mit.edu", "fake_token")
+    assert len(assignments) == 1
+    assert assignments[0].name == "Dated"
+    assert errors == []
 
 
 @patch("canvas_client.Canvas")
@@ -53,10 +54,11 @@ def test_fetch_multiple_courses(mock_canvas_cls):
     c2 = _make_mock_course(2, "18.06", [_make_mock_assignment(2, "HW1", future, "18.06", 2)])
     mock_canvas.get_courses.return_value = [c1, c2]
 
-    result = fetch_all_assignments("https://canvas.mit.edu", "fake_token")
-    assert len(result) == 2
-    course_names = {a.course_name for a in result}
+    assignments, errors = fetch_all_assignments("https://canvas.mit.edu", "fake_token")
+    assert len(assignments) == 2
+    course_names = {a.course_name for a in assignments}
     assert course_names == {"6.042", "18.06"}
+    assert errors == []
 
 
 @patch("canvas_client.Canvas")
@@ -70,7 +72,8 @@ def test_fetch_populates_submitted_field(mock_canvas_cls):
     pending_a.has_submitted_submissions = False
     course = _make_mock_course(1, "Test Course", [submitted_a, pending_a])
     mock_canvas.get_courses.return_value = [course]
-    result = fetch_all_assignments("https://canvas.mit.edu", "fake_token")
-    assert len(result) == 2
-    assert result[0].submitted is True
-    assert result[1].submitted is False
+    assignments, errors = fetch_all_assignments("https://canvas.mit.edu", "fake_token")
+    assert len(assignments) == 2
+    assert assignments[0].submitted is True
+    assert assignments[1].submitted is False
+    assert errors == []

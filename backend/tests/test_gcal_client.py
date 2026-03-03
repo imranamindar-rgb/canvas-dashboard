@@ -10,7 +10,6 @@ from gcal_client import (
     TOKEN_FILE,
     URGENCY_COLORS,
     is_authorized,
-    authorize,
     build_event,
     sync_to_calendar,
 )

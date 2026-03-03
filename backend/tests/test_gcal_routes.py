@@ -45,6 +45,7 @@ def test_gcal_auth_not_authorized(mock_auth, client):
     assert data["authorized"] is False
 
 
+@patch("app.google_available", True)
 @patch("gcal_client.is_authorized", return_value=True)
 def test_gcal_auth_authorized(mock_auth, client):
     resp = client.get("/api/gcal/auth")
@@ -53,15 +54,19 @@ def test_gcal_auth_authorized(mock_auth, client):
     assert data["authorized"] is True
 
 
-@patch("gcal_client.authorize", return_value={"authorized": True})
-def test_gcal_authorize(mock_authorize, client):
+@patch("app.google_available", True)
+@patch("gcal_client.get_auth_url", return_value="https://accounts.google.com/oauth?state=x")
+def test_gcal_authorize(mock_get_url, client):
+    """POST /api/gcal/authorize now returns {auth_url} for web redirect flow."""
     resp = client.post("/api/gcal/authorize")
     assert resp.status_code == 200
     data = json.loads(resp.data)
-    assert data["authorized"] is True
-    mock_authorize.assert_called_once()
+    assert "auth_url" in data
+    assert data["auth_url"].startswith("https://accounts.google.com")
+    mock_get_url.assert_called_once()
 
 
+@patch("app.google_available", True)
 @patch("gcal_client.sync_to_calendar", return_value={"synced": 1})
 def test_gcal_sync(mock_sync, client):
     resp = client.post("/api/gcal/sync")
