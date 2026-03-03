@@ -18,6 +18,7 @@ export interface Assignment {
   email_date?: string;
   next_action?: string | null;
   effort?: "S" | "M" | "L" | "XL" | null;
+  planned_day?: string | null;
 }
 
 export interface Stats {

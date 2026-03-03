@@ -73,6 +73,7 @@ def assignments():
         m = meta.get(str(a["id"]), {})
         a["next_action"] = m.get("next_action")
         a["effort"] = m.get("effort")
+        a["planned_day"] = m.get("planned_day")
         # Override checked from DB (more trusted than localStorage)
         if m.get("checked"):
             a["checked"] = True
@@ -244,6 +245,23 @@ def set_checked(assignment_id):
         return jsonify({"ok": True})
     except Exception:
         logger.exception("Failed to save checked for %s", assignment_id)
+        return jsonify({"error": "Failed to save. Please try again."}), 500
+
+
+@app.route("/api/assignments/<assignment_id>/planned-day", methods=["PUT"])
+def set_planned_day(assignment_id):
+    """Body: {"planned_day": "YYYY-MM-DD" | null}. Save it."""
+    body = request.get_json(force=True) or {}
+    planned_day = body.get("planned_day")
+    if planned_day is not None:
+        import re
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", str(planned_day)):
+            return jsonify({"error": "planned_day must be YYYY-MM-DD or null"}), 400
+    try:
+        meta_store.set_planned_day(str(assignment_id), planned_day)
+        return jsonify({"ok": True})
+    except Exception:
+        logger.exception("Failed to save planned_day for %s", assignment_id)
         return jsonify({"error": "Failed to save. Please try again."}), 500
 
 

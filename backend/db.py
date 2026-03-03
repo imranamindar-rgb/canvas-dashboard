@@ -50,3 +50,7 @@ def init_db():
                 updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
+        try:
+            c.execute("ALTER TABLE assignment_meta ADD COLUMN planned_day TEXT")
+        except Exception:
+            pass  # Column already exists

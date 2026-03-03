@@ -5,10 +5,10 @@ from db import cursor
 
 
 def get_meta(assignment_id: str) -> dict:
-    """Return {next_action, effort, checked, checked_at} or defaults."""
+    """Return {next_action, effort, checked, checked_at, planned_day} or defaults."""
     with cursor() as c:
         c.execute(
-            "SELECT next_action, effort, checked, checked_at FROM assignment_meta WHERE assignment_id = ?",
+            "SELECT next_action, effort, checked, checked_at, planned_day FROM assignment_meta WHERE assignment_id = ?",
             (assignment_id,),
         )
         row = c.fetchone()
@@ -18,12 +18,14 @@ def get_meta(assignment_id: str) -> dict:
             "effort": None,
             "checked": False,
             "checked_at": None,
+            "planned_day": None,
         }
     return {
         "next_action": row["next_action"],
         "effort": row["effort"],
         "checked": bool(row["checked"]),
         "checked_at": row["checked_at"],
+        "planned_day": row["planned_day"],
     }
 
 
@@ -78,6 +80,28 @@ def set_checked(assignment_id: str, checked: bool) -> None:
         )
 
 
+def set_planned_day(assignment_id: str, planned_day: str | None) -> None:
+    """planned_day is an ISO date string 'YYYY-MM-DD' or None to unplan."""
+    with cursor() as c:
+        c.execute("""INSERT INTO assignment_meta (assignment_id, planned_day, updated_at)
+                     VALUES (?, ?, datetime('now'))
+                     ON CONFLICT(assignment_id) DO UPDATE SET
+                       planned_day = excluded.planned_day,
+                       updated_at = excluded.updated_at""",
+                  (assignment_id, planned_day))
+
+
+def get_planned_days(assignment_ids: list[str]) -> dict[str, str | None]:
+    """Return {assignment_id: planned_day} for all given ids."""
+    if not assignment_ids:
+        return {}
+    placeholders = ",".join("?" * len(assignment_ids))
+    with cursor() as c:
+        c.execute(f"SELECT assignment_id, planned_day FROM assignment_meta WHERE assignment_id IN ({placeholders})",
+                  assignment_ids)
+        return {row[0]: row[1] for row in c.fetchall()}
+
+
 def bulk_get_meta(assignment_ids: list[str]) -> dict[str, dict]:
     """Return {assignment_id: meta_dict} for all given IDs."""
     if not assignment_ids:
@@ -85,7 +109,7 @@ def bulk_get_meta(assignment_ids: list[str]) -> dict[str, dict]:
     placeholders = ",".join("?" for _ in assignment_ids)
     with cursor() as c:
         c.execute(
-            f"SELECT assignment_id, next_action, effort, checked, checked_at "
+            f"SELECT assignment_id, next_action, effort, checked, checked_at, planned_day "
             f"FROM assignment_meta WHERE assignment_id IN ({placeholders})",
             assignment_ids,
         )
@@ -97,5 +121,6 @@ def bulk_get_meta(assignment_ids: list[str]) -> dict[str, dict]:
             "effort": row["effort"],
             "checked": bool(row["checked"]),
             "checked_at": row["checked_at"],
+            "planned_day": row["planned_day"],
         }
     return result

@@ -62,9 +62,10 @@ interface Props {
   focusedId?: string | number | null;
   expandedIds?: Set<string | number>;
   onToggleExpand?: (id: string | number) => void;
+  onMetaChange?: () => void;
 }
 
-export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, groupByUrgency, hasActiveFilters, searchQuery, focusedId, expandedIds, onToggleExpand }: Props) {
+export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, groupByUrgency, hasActiveFilters, searchQuery, focusedId, expandedIds, onToggleExpand, onMetaChange }: Props) {
   const [collapsedCourses, setCollapsedCourses] = useState<Set<string>>(new Set());
   const [collapsedUrgency, setCollapsedUrgency] = useState<Set<string>>(() => new Set(["runway"]));
   const [collapsedSources, setCollapsedSources] = useState<Set<string>>(new Set());
@@ -243,6 +244,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                   expandedIds={expandedIds}
                   onToggleExpand={onToggleExpand}
                   showEffort={true}
+                  onMetaChange={onMetaChange}
                 />
               ))}
           </tbody>
@@ -290,6 +292,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                 focusedId={focusedId}
                 expandedIds={expandedIds}
                 onToggleExpand={onToggleExpand}
+                onMetaChange={onMetaChange}
               />
             ))}
         </tbody>
@@ -337,6 +340,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                 focusedId={focusedId}
                 expandedIds={expandedIds}
                 onToggleExpand={onToggleExpand}
+                onMetaChange={onMetaChange}
               />
             ))}
         </tbody>
@@ -353,6 +357,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
             focusedId={focusedId}
             expandedIds={expandedIds}
             onToggleExpand={onToggleExpand}
+            onMetaChange={onMetaChange}
           />
         ))}
       </tbody>

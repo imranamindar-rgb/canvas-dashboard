@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
 import type { Assignment } from "../types";
 import { formatRelativeTime } from "../utils/formatRelativeTime";
 import { URGENCY_STYLES, ROW_BG, ROW_HOVER } from "../utils/urgencyStyles";
 import { getCourseColor } from "../utils/courseColors";
+import { api } from "../utils/api";
 
 interface Props {
   assignment: Assignment;
@@ -13,13 +14,26 @@ interface Props {
   expandedIds?: Set<string | number>;
   onToggleExpand?: (id: string | number) => void;
   showEffort?: boolean;
+  onMetaChange?: () => void;
 }
 
-export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId, expandedIds, onToggleExpand, showEffort }: Props) {
+export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId, expandedIds, onToggleExpand, showEffort, onMetaChange }: Props) {
   const [localExpanded, setLocalExpanded] = useState(false);
   // Use controlled expandedIds if provided, otherwise fall back to local state
   const expanded = expandedIds !== undefined ? expandedIds.has(assignment.id) : localExpanded;
   const isFocused = focusedId !== undefined && focusedId !== null && focusedId === assignment.id;
+
+  // Inline editor state (only relevant when expanded)
+  const [editingNextAction, setEditingNextAction] = useState<string>(assignment.next_action ?? "");
+  const [nextActionSaving, setNextActionSaving] = useState(false);
+  const [nextActionSuggestLoading, setNextActionSuggestLoading] = useState(false);
+  const [nextActionError, setNextActionError] = useState<string | null>(null);
+  const [effortSaving, setEffortSaving] = useState(false);
+
+  // Reset editingNextAction when assignment.next_action changes from parent
+  useEffect(() => {
+    setEditingNextAction(assignment.next_action ?? "");
+  }, [assignment.next_action]);
 
   const handleToggleExpand = () => {
     if (onToggleExpand) {
@@ -28,6 +42,7 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
       setLocalExpanded((prev) => !prev);
     }
   };
+
   const due = assignment.due_at ? new Date(assignment.due_at) : null;
   const dateStr = due
     ? due.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
@@ -37,6 +52,50 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
     : "";
 
   const courseColor = getCourseColor(assignment.course_name);
+
+  const handleSaveNextAction = async () => {
+    setNextActionSaving(true);
+    setNextActionError(null);
+    try {
+      await api.put(`/api/assignments/${assignment.id}/next-action`, { next_action: editingNextAction });
+      onMetaChange?.();
+    } catch {
+      setNextActionError("Failed to save. Please try again.");
+    } finally {
+      setNextActionSaving(false);
+    }
+  };
+
+  const handleSuggestNextAction = async () => {
+    setNextActionSuggestLoading(true);
+    setNextActionError(null);
+    try {
+      const data = await api.post<{ suggestion: string; error?: string }>(
+        `/api/assignments/${assignment.id}/next-action/suggest`,
+        { name: assignment.name, description: assignment.description ?? "", course_name: assignment.course_name }
+      );
+      if (data.error) {
+        setNextActionError(data.error);
+      } else {
+        setEditingNextAction(data.suggestion);
+        onMetaChange?.();
+      }
+    } catch {
+      setNextActionError("Suggestion failed. Please try again.");
+    } finally {
+      setNextActionSuggestLoading(false);
+    }
+  };
+
+  const handleSetEffort = async (effort: "S" | "M" | "L" | "XL") => {
+    setEffortSaving(true);
+    try {
+      await api.put(`/api/assignments/${assignment.id}/effort`, { effort });
+      onMetaChange?.();
+    } finally {
+      setEffortSaving(false);
+    }
+  };
 
   return (
     <>
@@ -142,17 +201,81 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
       {expanded && (
         <tr className="border-b border-gray-100 bg-gray-50">
           <td colSpan={6} className="px-6 py-4">
-            <div className="mb-2 text-sm text-gray-700">
+            {/* Description */}
+            <div className="mb-3 text-sm text-gray-700">
               {assignment.description ? (
                 <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(assignment.description) }} />
               ) : (
                 <p className="italic text-gray-400">No description</p>
               )}
             </div>
+
+            <hr className="border-gray-200 mb-3" />
+
+            {/* Next Action editor */}
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Next Action</label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="text"
+                  value={editingNextAction}
+                  onChange={(e) => setEditingNextAction(e.target.value)}
+                  maxLength={500}
+                  placeholder="What's the first physical action?"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleSuggestNextAction(); }}
+                  disabled={nextActionSuggestLoading}
+                  className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+                  title="Ask Claude to suggest a next action"
+                >
+                  {nextActionSuggestLoading ? "..." : "\u2726 Suggest"}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleSaveNextAction(); }}
+                  disabled={nextActionSaving || editingNextAction === (assignment.next_action ?? "")}
+                  className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                >
+                  {nextActionSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+              {nextActionError && <p className="mt-1 text-xs text-red-500">{nextActionError}</p>}
+            </div>
+
+            <hr className="border-gray-200 mt-3 mb-3" />
+
+            {/* Effort selector */}
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Effort</label>
+              <div className="mt-1 flex gap-1.5">
+                {(["S", "M", "L", "XL"] as const).map((e) => (
+                  <button
+                    key={e}
+                    onClick={(ev) => { ev.stopPropagation(); handleSetEffort(e); }}
+                    disabled={effortSaving}
+                    className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                      assignment.effort === e
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                    aria-pressed={assignment.effort === e}
+                    aria-label={`Set effort to ${e}`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <hr className="border-gray-200 mt-3 mb-3" />
+
             <a
               href={assignment.html_url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
               className="text-sm font-medium text-blue-600 hover:text-blue-800"
             >
               Open in Canvas &rarr;
