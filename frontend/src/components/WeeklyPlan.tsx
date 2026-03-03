@@ -65,6 +65,10 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
   const weekStart = weekDates[0];
   const weekEnd = weekDates[6];
+  const nextWeekDates = useMemo(() => getWeekDates(weekOffset + 1), [weekOffset]);
+  const nextWeekStart = nextWeekDates[0];
+  const nextWeekEnd = nextWeekDates[6];
+  const todayIso = toISODate(new Date());
 
   // Filter: show assignments due within ±14 days of the displayed week
   const relevant = useMemo(() => {
@@ -99,19 +103,29 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
     return map;
   }, [relevant, weekDates, overrides, getEffectivePlannedDay]);
 
-  // Assignments due within the week but with no planned_day set for this week
-  const unscheduled = useMemo(() => {
+  // Unscheduled assignments due this week
+  const unscheduledThisWeek = useMemo(() => {
     const weekIsos = new Set(weekDates.map(toISODate));
     return relevant.filter((a) => {
       const pd = getEffectivePlannedDay(a);
-      // Only show in unscheduled if: no planned_day, or planned_day not in this week
       if (pd && weekIsos.has(pd)) return false;
-      // Only show if due within the week or within 7 days after week start
       if (!a.due_at) return false;
       const due = new Date(a.due_at);
       return due >= weekStart && due <= weekEnd;
     });
   }, [relevant, weekDates, weekStart, weekEnd, overrides, getEffectivePlannedDay]);
+
+  // Unscheduled assignments due next week
+  const unscheduledNextWeek = useMemo(() => {
+    const weekIsos = new Set(weekDates.map(toISODate));
+    return assignments.filter((a) => {
+      if (!a.due_at) return false;
+      const pd = getEffectivePlannedDay(a);
+      if (pd && weekIsos.has(pd)) return false;
+      const due = new Date(a.due_at);
+      return due >= nextWeekStart && due <= nextWeekEnd;
+    });
+  }, [assignments, weekDates, nextWeekStart, nextWeekEnd, overrides, getEffectivePlannedDay]);
 
   const handleSetDay = async (assignment: Assignment, day: string | null) => {
     setSaving(assignment.id);
@@ -228,16 +242,20 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
         })}
       </div>
 
-      {/* Unscheduled section */}
-      {unscheduled.length > 0 && (
+      {/* Unscheduled — due this week */}
+      {unscheduledThisWeek.length > 0 && (
         <div className="rounded-lg bg-white shadow-sm p-4 mb-4">
           <h3 className="mb-3 text-sm font-semibold text-gray-700 uppercase tracking-wide">
-            Unscheduled — due this week ({unscheduled.length})
+            Unscheduled — due this week ({unscheduledThisWeek.length})
           </h3>
           <div className="flex flex-col gap-2">
-            {unscheduled.map((a) => {
+            {unscheduledThisWeek.map((a) => {
               const color = getCourseColor(a.course_name);
               const due = a.due_at ? new Date(a.due_at) : null;
+              const dueIso = due ? toISODate(due) : null;
+              const availableDays = weekDates
+                .map((d, idx) => ({ d, idx, iso: toISODate(d) }))
+                .filter(({ iso }) => iso >= todayIso && (dueIso === null || iso <= dueIso));
               return (
                 <div
                   key={a.id}
@@ -261,12 +279,11 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
                       {a.effort}
                     </span>
                   )}
-                  {/* Day selector */}
                   <div className="flex gap-1 shrink-0">
-                    {weekDates.map((d, idx) => (
+                    {availableDays.map(({ d, idx, iso }) => (
                       <button
-                        key={toISODate(d)}
-                        onClick={() => handleSetDay(a, toISODate(d))}
+                        key={iso}
+                        onClick={() => handleSetDay(a, iso)}
                         disabled={saving === a.id}
                         title={`Plan for ${DAY_NAMES[idx]} ${d.getDate()}`}
                         className="rounded px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-700 transition-colors disabled:opacity-50"
@@ -282,15 +299,71 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
         </div>
       )}
 
-      {unscheduled.length === 0 && relevant.length === 0 && (
-        <div className="rounded-lg bg-white shadow-sm p-8 text-center text-gray-400">
-          <p className="text-sm">No assignments due around this week.</p>
+      {unscheduledThisWeek.length === 0 && relevant.length > 0 && (
+        <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center text-green-700 text-sm font-medium mb-4">
+          All assignments due this week are scheduled!
         </div>
       )}
 
-      {unscheduled.length === 0 && relevant.length > 0 && (
-        <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center text-green-700 text-sm font-medium mb-4">
-          All assignments due this week are scheduled!
+      {/* Unscheduled — due next week */}
+      {unscheduledNextWeek.length > 0 && (
+        <div className="rounded-lg bg-white shadow-sm p-4 mb-4">
+          <h3 className="mb-3 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Unscheduled — due next week ({unscheduledNextWeek.length})
+          </h3>
+          <div className="flex flex-col gap-2">
+            {unscheduledNextWeek.map((a) => {
+              const color = getCourseColor(a.course_name);
+              const due = a.due_at ? new Date(a.due_at) : null;
+              const availableDays = weekDates
+                .map((d, idx) => ({ d, idx, iso: toISODate(d) }))
+                .filter(({ iso }) => iso >= todayIso);
+              return (
+                <div
+                  key={a.id}
+                  className="flex flex-wrap items-center gap-3 rounded-md border border-gray-100 bg-gray-50 px-3 py-2"
+                >
+                  <span
+                    className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs font-medium ${color.bg} ${color.text} ${color.border} border`}
+                  >
+                    {a.course_name}
+                  </span>
+                  <span className="flex-1 text-sm text-gray-800 font-medium truncate" title={a.name}>
+                    {a.name}
+                  </span>
+                  {due && (
+                    <span className="text-xs text-gray-400 shrink-0">
+                      {formatRelativeDay(due, weekDates)}
+                    </span>
+                  )}
+                  {a.effort && (
+                    <span className="inline-flex items-center rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-600 shrink-0">
+                      {a.effort}
+                    </span>
+                  )}
+                  <div className="flex gap-1 shrink-0">
+                    {availableDays.map(({ d, idx, iso }) => (
+                      <button
+                        key={iso}
+                        onClick={() => handleSetDay(a, iso)}
+                        disabled={saving === a.id}
+                        title={`Plan for ${DAY_NAMES[idx]} ${d.getDate()}`}
+                        className="rounded px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-700 transition-colors disabled:opacity-50"
+                      >
+                        {DAY_NAMES[idx]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {unscheduledThisWeek.length === 0 && unscheduledNextWeek.length === 0 && relevant.length === 0 && (
+        <div className="rounded-lg bg-white shadow-sm p-8 text-center text-gray-400">
+          <p className="text-sm">No assignments due around this week.</p>
         </div>
       )}
 
