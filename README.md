@@ -4,7 +4,7 @@ A personal dashboard for MIT EMBA students to track Canvas assignments, sync to 
 
 ## One-Click Deploy (Render)
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/imranamindar-rgb/canvas-dashboard)
 
 1. Click the button above
 2. Fill in your **Canvas API Token** (get from canvas.mit.edu → Account → Settings → New Access Token)
