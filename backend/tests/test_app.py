@@ -130,3 +130,21 @@ def test_email_sync_error_does_not_leak(client, monkeypatch):
     assert resp.status_code == 500
     data = resp.get_json()
     assert "API key invalid" not in data.get("error", "")
+
+
+def test_cors_disabled_when_no_env_var(client):
+    """When CORS_ORIGIN is not set, no Access-Control-Allow-Origin header on requests."""
+    resp = client.get("/api/health", headers={"Origin": "http://localhost:5173"})
+    assert "Access-Control-Allow-Origin" not in resp.headers
+
+
+@patch.dict("os.environ", {"CORS_ORIGIN": "http://localhost:5173"})
+def test_cors_enabled_when_env_var_set():
+    """When CORS_ORIGIN is set, CORS headers are present."""
+    import importlib
+    import app as app_module
+    importlib.reload(app_module)
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as c:
+        resp = c.get("/api/health", headers={"Origin": "http://localhost:5173"})
+    assert "Access-Control-Allow-Origin" in resp.headers

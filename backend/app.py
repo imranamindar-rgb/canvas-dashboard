@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 cors_origin = os.environ.get("CORS_ORIGIN")
 if cors_origin:
-    CORS(app, origins=cors_origin.split(","))
+    CORS(app, origins=[o.strip() for o in cors_origin.split(",")])
 
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[])
 
