@@ -34,8 +34,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-cors_origins = os.environ.get("CORS_ORIGIN", "http://localhost:5173").split(",")
-CORS(app, origins=cors_origins)
+cors_origin = os.environ.get("CORS_ORIGIN")
+if cors_origin:
+    CORS(app, origins=cors_origin.split(","))
 
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[])
 
