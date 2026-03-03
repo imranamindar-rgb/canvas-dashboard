@@ -51,6 +51,8 @@ export default function App() {
   const [focusedId, setFocusedId] = useState<string | number | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string | number>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const planRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const metaRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     authorized,
@@ -116,12 +118,14 @@ export default function App() {
   // Handler for setting planned day - saves to backend then refreshes after 1s
   const planSetDay = useCallback(async (assignment: Parameters<typeof setPlannedDay>[0], day: string | null) => {
     await setPlannedDay(assignment, day);
-    setTimeout(refresh, 1000);
+    if (planRefreshTimer.current) clearTimeout(planRefreshTimer.current);
+    planRefreshTimer.current = setTimeout(refresh, 1000);
   }, [setPlannedDay, refresh]);
 
   // Handler for meta changes (next action, effort) - refresh after 300ms
   const handleMetaChange = useCallback(() => {
-    setTimeout(refresh, 300);
+    if (metaRefreshTimer.current) clearTimeout(metaRefreshTimer.current);
+    metaRefreshTimer.current = setTimeout(refresh, 300);
   }, [refresh]);
 
   // Remove the initial loading spinner after first paint

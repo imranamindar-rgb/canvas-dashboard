@@ -10,6 +10,7 @@ EMAIL_BODY_MAX_CHARS = 50_000
 
 # Rate limiting
 EMAIL_SYNC_RATE_LIMIT = "10 per hour"
+NEXT_ACTION_RATE_LIMIT = "10 per minute"
 
 # Next action
 NEXT_ACTION_MAX_CHARS = 500

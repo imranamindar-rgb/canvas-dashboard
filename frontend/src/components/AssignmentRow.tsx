@@ -29,6 +29,7 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
   const [nextActionSuggestLoading, setNextActionSuggestLoading] = useState(false);
   const [nextActionError, setNextActionError] = useState<string | null>(null);
   const [effortSaving, setEffortSaving] = useState(false);
+  const [effortError, setEffortError] = useState<string | null>(null);
 
   // Reset editingNextAction when assignment.next_action changes from parent
   useEffect(() => {
@@ -89,9 +90,12 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
 
   const handleSetEffort = async (effort: "S" | "M" | "L" | "XL") => {
     setEffortSaving(true);
+    setEffortError(null);
     try {
       await api.put(`/api/assignments/${assignment.id}/effort`, { effort });
       onMetaChange?.();
+    } catch {
+      setEffortError("Failed to save effort. Please try again.");
     } finally {
       setEffortSaving(false);
     }
@@ -220,9 +224,10 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
                   type="text"
                   value={editingNextAction}
                   onChange={(e) => setEditingNextAction(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
                   maxLength={500}
                   placeholder="What's the first physical action?"
-                  onClick={(e) => e.stopPropagation()}
                   className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
                 <button
@@ -230,8 +235,9 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
                   disabled={nextActionSuggestLoading}
                   className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
                   title="Ask Claude to suggest a next action"
+                  aria-label="Suggest next action with Claude"
                 >
-                  {nextActionSuggestLoading ? "..." : "\u2726 Suggest"}
+                  {nextActionSuggestLoading ? "Suggesting..." : "\u2726 Suggest"}
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleSaveNextAction(); }}
@@ -267,6 +273,7 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
                   </button>
                 ))}
               </div>
+              {effortError && <p className="mt-1 text-xs text-red-500">{effortError}</p>}
             </div>
 
             <hr className="border-gray-200 mt-3 mb-3" />

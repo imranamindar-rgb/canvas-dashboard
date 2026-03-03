@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { Assignment } from "../types";
 import { getCourseColor } from "../utils/courseColors";
 
@@ -79,10 +79,10 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
     });
   }, [assignments, weekStart, weekEnd]);
 
-  function getEffectivePlannedDay(a: Assignment): string | null | undefined {
+  const getEffectivePlannedDay = useCallback((a: Assignment): string | null | undefined => {
     if (overrides.has(a.id)) return overrides.get(a.id);
     return a.planned_day;
-  }
+  }, [overrides]);
 
   // Assignments planned for each day of the week
   const byDay = useMemo(() => {
@@ -97,8 +97,7 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
       }
     }
     return map;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [relevant, weekDates, overrides]);
+  }, [relevant, weekDates, overrides, getEffectivePlannedDay]);
 
   // Assignments due within the week but with no planned_day set for this week
   const unscheduled = useMemo(() => {
@@ -112,11 +111,14 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
       const due = new Date(a.due_at);
       return due >= weekStart && due <= weekEnd;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [relevant, weekDates, weekStart, weekEnd, overrides]);
+  }, [relevant, weekDates, weekStart, weekEnd, overrides, getEffectivePlannedDay]);
 
   const handleSetDay = async (assignment: Assignment, day: string | null) => {
     setSaving(assignment.id);
+    // Capture previous value for rollback
+    const previousDay = overrides.has(assignment.id)
+      ? overrides.get(assignment.id)
+      : assignment.planned_day ?? null;
     // Optimistic update
     setOverrides((prev) => {
       const next = new Map(prev);
@@ -125,6 +127,13 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
     });
     try {
       await onSetPlannedDay(assignment, day);
+    } catch {
+      // Rollback optimistic update
+      setOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(assignment.id, previousDay ?? null);
+        return next;
+      });
     } finally {
       setSaving(null);
     }

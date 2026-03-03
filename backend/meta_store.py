@@ -99,7 +99,7 @@ def get_planned_days(assignment_ids: list[str]) -> dict[str, str | None]:
     with cursor() as c:
         c.execute(f"SELECT assignment_id, planned_day FROM assignment_meta WHERE assignment_id IN ({placeholders})",
                   assignment_ids)
-        return {row[0]: row[1] for row in c.fetchall()}
+        return {row["assignment_id"]: row["planned_day"] for row in c.fetchall()}
 
 
 def bulk_get_meta(assignment_ids: list[str]) -> dict[str, dict]:

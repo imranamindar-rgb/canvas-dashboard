@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import logging
 
 from dotenv import load_dotenv
@@ -25,6 +26,7 @@ from constants import (
     NEXT_ACTION_PROMPT_NAME_MAX,
     NEXT_ACTION_PROMPT_DESC_MAX,
     NEXT_ACTION_PROMPT_COURSE_MAX,
+    NEXT_ACTION_RATE_LIMIT,
 )
 
 load_dotenv()
@@ -254,7 +256,6 @@ def set_planned_day(assignment_id):
     body = request.get_json(force=True) or {}
     planned_day = body.get("planned_day")
     if planned_day is not None:
-        import re
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", str(planned_day)):
             return jsonify({"error": "planned_day must be YYYY-MM-DD or null"}), 400
     try:
@@ -265,6 +266,7 @@ def set_planned_day(assignment_id):
         return jsonify({"error": "Failed to save. Please try again."}), 500
 
 
+@limiter.limit(NEXT_ACTION_RATE_LIMIT)
 @app.route("/api/assignments/<assignment_id>/next-action/suggest", methods=["POST"])
 def suggest_next_action(assignment_id):
     """Call Claude to suggest a next action for this assignment."""
