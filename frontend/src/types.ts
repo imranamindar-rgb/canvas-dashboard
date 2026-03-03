@@ -35,4 +35,5 @@ export interface HealthStatus {
   assignment_count: number;
   error: string | null;
   sync_errors: string[];
+  anthropic_available: boolean;
 }

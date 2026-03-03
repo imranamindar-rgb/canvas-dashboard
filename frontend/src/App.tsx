@@ -283,6 +283,7 @@ export default function App() {
                 expandedIds={expandedIds}
                 onToggleExpand={handleToggleExpand}
                 onMetaChange={handleMetaChange}
+                anthropicAvailable={health?.anthropic_available ?? true}
               />
             </div>
           </main>

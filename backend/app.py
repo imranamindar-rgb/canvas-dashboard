@@ -60,6 +60,7 @@ def health():
         "assignment_count": len(store.get_all()),
         "error": store.error,
         "sync_errors": store.sync_errors,
+        "anthropic_available": bool(anthropic_key),
     })
 
 

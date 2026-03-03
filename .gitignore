@@ -3,3 +3,7 @@ frontend/dist/
 backend/.venv/
 backend/.env
 backend/__pycache__/
+backend/google_credentials.json
+backend/token.json
+backend/.codex_write_test
+.DS_Store

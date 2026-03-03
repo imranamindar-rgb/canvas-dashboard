@@ -11,7 +11,7 @@ services:
       - key: CANVAS_API_TOKEN
         sync: false
       - key: ANTHROPIC_API_KEY
-        sync: false
+        value: ""
       - key: CACHE_TTL_SECONDS
         value: "300"
       - key: GUNICORN_RUNNING

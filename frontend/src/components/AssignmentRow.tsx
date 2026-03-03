@@ -15,9 +15,10 @@ interface Props {
   onToggleExpand?: (id: string | number) => void;
   showEffort?: boolean;
   onMetaChange?: () => void;
+  anthropicAvailable?: boolean;
 }
 
-export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId, expandedIds, onToggleExpand, showEffort, onMetaChange }: Props) {
+export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId, expandedIds, onToggleExpand, showEffort, onMetaChange, anthropicAvailable }: Props) {
   const [localExpanded, setLocalExpanded] = useState(false);
   // Use controlled expandedIds if provided, otherwise fall back to local state
   const expanded = expandedIds !== undefined ? expandedIds.has(assignment.id) : localExpanded;
@@ -230,15 +231,17 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
                   placeholder="What's the first physical action?"
                   className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleSuggestNextAction(); }}
-                  disabled={nextActionSuggestLoading}
-                  className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
-                  title="Ask Claude to suggest a next action"
-                  aria-label="Suggest next action with Claude"
-                >
-                  {nextActionSuggestLoading ? "Suggesting..." : "\u2726 Suggest"}
-                </button>
+                {anthropicAvailable !== false && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleSuggestNextAction(); }}
+                    disabled={nextActionSuggestLoading}
+                    className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+                    title="Ask Claude to suggest a next action"
+                    aria-label="Suggest next action with Claude"
+                  >
+                    {nextActionSuggestLoading ? "Suggesting..." : "\u2726 Suggest"}
+                  </button>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleSaveNextAction(); }}
                   disabled={nextActionSaving || editingNextAction === (assignment.next_action ?? "")}
