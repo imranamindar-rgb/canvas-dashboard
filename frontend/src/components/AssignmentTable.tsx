@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import type { Assignment } from "../types";
+import { useState, useMemo, useCallback } from "react";
+import type { Assignment, Urgency } from "../types";
 import { AssignmentRow } from "./AssignmentRow";
 import { AssignmentCard } from "./AssignmentCard";
 
@@ -36,7 +36,7 @@ function groupAssignmentsByUrgency(assignments: Assignment[]) {
     .filter((g) => g.items.length > 0);
 }
 
-const URGENCY_SECTION_STYLES: Record<string, {
+const URGENCY_SECTION_STYLES: Record<Urgency, {
   headerBg: string;
   headerText: string;
   leftBorder: string;
@@ -67,26 +67,36 @@ interface Props {
 export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, groupByUrgency, hasActiveFilters, searchQuery, focusedId, expandedIds, onToggleExpand }: Props) {
   const [collapsedCourses, setCollapsedCourses] = useState<Set<string>>(new Set());
   const [collapsedUrgency, setCollapsedUrgency] = useState<Set<string>>(() => new Set(["runway"]));
+  const [collapsedSources, setCollapsedSources] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<"course" | "name" | "due" | "points" | "urgency">("due");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const toggleCourseCollapse = (name: string) => {
+  const toggleCourseCollapse = useCallback((name: string) => {
     setCollapsedCourses((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
     });
-  };
+  }, []);
 
-  const toggleUrgencyCollapse = (urgency: string) => {
+  const toggleUrgencyCollapse = useCallback((urgency: string) => {
     setCollapsedUrgency((prev) => {
       const next = new Set(prev);
       if (next.has(urgency)) next.delete(urgency);
       else next.add(urgency);
       return next;
     });
-  };
+  }, []);
+
+  const toggleSourceCollapse = useCallback((label: string) => {
+    setCollapsedSources((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }, []);
 
   const handleSort = (key: typeof sortKey) => {
     if (sortKey === key) {
@@ -99,13 +109,18 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
 
   const sorted = useMemo(() => {
     const copy = [...assignments];
-    const urgencyOrder: Record<string, number> = { overdue: 0, critical: 1, high: 2, medium: 3, runway: 4 };
+    const urgencyOrder: Partial<Record<Urgency, number>> = { overdue: 0, critical: 1, high: 2, medium: 3, runway: 4 };
     copy.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
         case "course": cmp = a.course_name.localeCompare(b.course_name); break;
         case "name": cmp = a.name.localeCompare(b.name); break;
-        case "due": cmp = new Date(a.due_at).getTime() - new Date(b.due_at).getTime(); break;
+        case "due": {
+          const aTime = a.due_at ? new Date(a.due_at).getTime() : Infinity;
+          const bTime = b.due_at ? new Date(b.due_at).getTime() : Infinity;
+          cmp = aTime - bTime;
+          break;
+        }
         case "points": cmp = (a.points_possible ?? 0) - (b.points_possible ?? 0); break;
         case "urgency": cmp = (urgencyOrder[a.urgency] ?? 5) - (urgencyOrder[b.urgency] ?? 5); break;
       }
@@ -113,6 +128,19 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
     });
     return copy;
   }, [assignments, sortKey, sortDirection]);
+
+  const groups = useMemo(
+    () => groupByCourse ? groupAssignmentsByCourse(sorted) : null,
+    [sorted, groupByCourse]
+  );
+  const sourceGroups = useMemo(
+    () => groupBySource ? groupAssignmentsBySource(sorted) : null,
+    [sorted, groupBySource]
+  );
+  const urgencyGroups = useMemo(
+    () => groupByUrgency ? groupAssignmentsByUrgency(sorted) : null,
+    [sorted, groupByUrgency]
+  );
 
   if (loading && assignments.length === 0) {
     return (
@@ -168,18 +196,19 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
     );
   }
 
-  const groups = groupByCourse ? groupAssignmentsByCourse(sorted) : null;
-  const sourceGroups = groupBySource ? groupAssignmentsBySource(sorted) : null;
-  const urgencyGroups = groupByUrgency ? groupAssignmentsByUrgency(sorted) : null;
-
   const renderDesktopRows = () => {
     if (urgencyGroups) {
       return urgencyGroups.map(({ urgency, items }) => {
-        const style = URGENCY_SECTION_STYLES[urgency] ?? URGENCY_SECTION_STYLES.medium;
+        const style = URGENCY_SECTION_STYLES[urgency];
         return (
           <tbody key={urgency}>
             <tr
               onClick={() => toggleUrgencyCollapse(urgency)}
+              tabIndex={0}
+              role="button"
+              aria-expanded={!collapsedUrgency.has(urgency)}
+              aria-label={`${urgency} section, ${items.length} item${items.length !== 1 ? "s" : ""}`}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleUrgencyCollapse(urgency); } }}
               className={`cursor-pointer transition-colors ${style.headerBg} hover:brightness-95`}
             >
               <td colSpan={6} className={`px-4 py-2.5 ${style.leftBorder}`}>
@@ -224,6 +253,11 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
         <tbody key={courseName}>
           <tr
             onClick={() => toggleCourseCollapse(courseName)}
+            tabIndex={0}
+            role="button"
+            aria-expanded={!collapsedCourses.has(courseName)}
+            aria-label={`${courseName} section, ${items.length} item${items.length !== 1 ? "s" : ""}`}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCourseCollapse(courseName); } }}
             className="cursor-pointer bg-gray-100 hover:bg-gray-200 transition-colors"
           >
             <td colSpan={6} className="px-6 py-3">
@@ -264,7 +298,12 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
       return sourceGroups.map(({ label, items }) => (
         <tbody key={label}>
           <tr
-            onClick={() => toggleCourseCollapse(label)}
+            onClick={() => toggleSourceCollapse(label)}
+            tabIndex={0}
+            role="button"
+            aria-expanded={!collapsedSources.has(label)}
+            aria-label={`${label} section, ${items.length} item${items.length !== 1 ? "s" : ""}`}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSourceCollapse(label); } }}
             className={`cursor-pointer transition-colors ${
               label === "Email" ? "bg-purple-50 hover:bg-purple-100" : "bg-blue-50 hover:bg-blue-100"
             }`}
@@ -273,7 +312,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
               <div className="flex items-center gap-2">
                 <svg
                   className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
-                    collapsedCourses.has(label) ? "" : "rotate-90"
+                    collapsedSources.has(label) ? "" : "rotate-90"
                   }`}
                   fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                 >
@@ -288,7 +327,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
               </div>
             </td>
           </tr>
-          {!collapsedCourses.has(label) &&
+          {!collapsedSources.has(label) &&
             items.map((a) => (
               <AssignmentRow
                 key={a.id}
@@ -323,7 +362,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
   const renderMobileCards = () => {
     if (urgencyGroups) {
       return urgencyGroups.map(({ urgency, items }) => {
-        const style = URGENCY_SECTION_STYLES[urgency] ?? URGENCY_SECTION_STYLES.medium;
+        const style = URGENCY_SECTION_STYLES[urgency];
         return (
           <div key={urgency}>
             <button
@@ -399,14 +438,14 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
       return sourceGroups.map(({ label, items }) => (
         <div key={label}>
           <button
-            onClick={() => toggleCourseCollapse(label)}
+            onClick={() => toggleSourceCollapse(label)}
             className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 mb-2 transition-colors ${
               label === "Email" ? "bg-purple-50 hover:bg-purple-100" : "bg-blue-50 hover:bg-blue-100"
             }`}
           >
             <svg
               className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
-                collapsedCourses.has(label) ? "" : "rotate-90"
+                collapsedSources.has(label) ? "" : "rotate-90"
               }`}
               fill="none"
               viewBox="0 0 24 24"
@@ -420,7 +459,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
             }`}>{label}</span>
             <span className="text-xs text-gray-400">({items.length})</span>
           </button>
-          {!collapsedCourses.has(label) && (
+          {!collapsedSources.has(label) && (
             <div className="space-y-3 mb-4">
               {items.map((a) => (
                 <AssignmentCard

@@ -28,16 +28,13 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
       setLocalExpanded((prev) => !prev);
     }
   };
-  const due = new Date(assignment.due_at);
-  const dateStr = due.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  const timeStr = due.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const due = assignment.due_at ? new Date(assignment.due_at) : null;
+  const dateStr = due
+    ? due.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+    : "No due date";
+  const timeStr = due
+    ? due.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    : "";
 
   const courseColor = getCourseColor(assignment.course_name);
 
@@ -104,15 +101,18 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
               {assignment.name}
             </span>
             {assignment.next_action && (
-              <span className="text-xs text-gray-500 truncate max-w-xs">
+              <span
+                className="text-xs text-gray-500 truncate max-w-xs"
+                title={assignment.next_action ?? undefined}
+              >
                 &rarr; {assignment.next_action}
               </span>
             )}
           </div>
         </td>
         <td className="px-6 py-3 text-sm text-gray-600">
-          <span className="font-medium">{formatRelativeTime(due)}</span>
-          <span className="ml-1 text-gray-400">({dateStr} {timeStr})</span>
+          <span className="font-medium">{due ? formatRelativeTime(due) : "No due date"}</span>
+          {due && <span className="ml-1 text-gray-400">({dateStr} {timeStr})</span>}
         </td>
         <td className="px-6 py-3 text-sm text-gray-600 text-right">
           {assignment.points_possible ?? "\u2014"}

@@ -5,7 +5,7 @@ export interface Assignment {
   name: string;
   course_name: string;
   course_id: number;
-  due_at: string;
+  due_at: string | null;
   points_possible: number | null;
   urgency: Urgency;
   html_url: string;

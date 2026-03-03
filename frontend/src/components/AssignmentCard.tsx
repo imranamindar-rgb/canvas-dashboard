@@ -12,8 +12,8 @@ interface Props {
 
 export function AssignmentCard({ assignment, checked, onToggleChecked }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const due = new Date(assignment.due_at);
-  const relative = formatRelativeTime(due);
+  const due = assignment.due_at ? new Date(assignment.due_at) : null;
+  const relative = due ? formatRelativeTime(due) : "No due date";
 
   return (
     <div

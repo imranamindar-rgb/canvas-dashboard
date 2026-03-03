@@ -135,10 +135,10 @@ export function useAssignments() {
     if (viewFilter === "today") {
       const endOfToday = new Date();
       endOfToday.setHours(23, 59, 59, 999);
-      result = result.filter((a) => new Date(a.due_at) <= endOfToday);
+      result = result.filter((a) => a.due_at != null && new Date(a.due_at) <= endOfToday);
     } else if (viewFilter === "week") {
       const endOfWeek = new Date(Date.now() + 7 * 86_400_000);
-      result = result.filter((a) => new Date(a.due_at) <= endOfWeek);
+      result = result.filter((a) => a.due_at != null && new Date(a.due_at) <= endOfWeek);
     }
     return result;
   }, [allAssignments, showSubmitted, checkedIds, searchQuery, urgencyFilter, courseFilter, viewFilter]);

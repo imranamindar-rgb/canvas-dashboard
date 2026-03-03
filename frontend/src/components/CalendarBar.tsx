@@ -115,7 +115,7 @@ export function CalendarBar({
                     [{a.course_name}] {a.name}
                   </span>
                   <span className="text-gray-500 whitespace-nowrap">
-                    {new Date(a.due_at).toLocaleDateString()}
+                    {a.due_at ? new Date(a.due_at).toLocaleDateString() : "No due date"}
                   </span>
                 </li>
               ))}
