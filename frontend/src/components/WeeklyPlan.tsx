@@ -69,6 +69,11 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
   const nextWeekStart = nextWeekDates[0];
   const nextWeekEnd = nextWeekDates[6];
   const todayIso = toISODate(new Date());
+  // Combined two-week range for day pickers that span the week boundary
+  const twoWeekDates = useMemo(
+    () => [...weekDates, ...nextWeekDates].map((d, i) => ({ d, iso: toISODate(d), dayName: DAY_NAMES[i % 7] })),
+    [weekDates, nextWeekDates]
+  );
 
   // Filter: show assignments due within ±14 days of the displayed week
   const relevant = useMemo(() => {
@@ -253,9 +258,9 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
               const color = getCourseColor(a.course_name);
               const due = a.due_at ? new Date(a.due_at) : null;
               const dueIso = due ? toISODate(due) : null;
-              const availableDays = weekDates
-                .map((d, idx) => ({ d, idx, iso: toISODate(d) }))
-                .filter(({ iso }) => iso >= todayIso && (dueIso === null || iso <= dueIso));
+              const availableDays = twoWeekDates.filter(
+                ({ iso }) => iso >= todayIso && (dueIso === null || iso <= dueIso)
+              );
               return (
                 <div
                   key={a.id}
@@ -279,16 +284,16 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
                       {a.effort}
                     </span>
                   )}
-                  <div className="flex gap-1 shrink-0">
-                    {availableDays.map(({ d, idx, iso }) => (
+                  <div className="flex gap-1 shrink-0 flex-wrap">
+                    {availableDays.map(({ d, dayName, iso }) => (
                       <button
                         key={iso}
                         onClick={() => handleSetDay(a, iso)}
                         disabled={saving === a.id}
-                        title={`Plan for ${DAY_NAMES[idx]} ${d.getDate()}`}
+                        title={`Plan for ${dayName} ${d.getDate()}`}
                         className="rounded px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-700 transition-colors disabled:opacity-50"
                       >
-                        {DAY_NAMES[idx]}
+                        {dayName} {d.getDate()}
                       </button>
                     ))}
                   </div>
@@ -315,9 +320,10 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
             {unscheduledNextWeek.map((a) => {
               const color = getCourseColor(a.course_name);
               const due = a.due_at ? new Date(a.due_at) : null;
-              const availableDays = weekDates
-                .map((d, idx) => ({ d, idx, iso: toISODate(d) }))
-                .filter(({ iso }) => iso >= todayIso);
+              const dueIso = due ? toISODate(due) : null;
+              const availableDays = twoWeekDates.filter(
+                ({ iso }) => iso >= todayIso && (dueIso === null || iso <= dueIso)
+              );
               return (
                 <div
                   key={a.id}
@@ -341,16 +347,16 @@ export function WeeklyPlan({ assignments, onSetPlannedDay, onSyncCalendar, synci
                       {a.effort}
                     </span>
                   )}
-                  <div className="flex gap-1 shrink-0">
-                    {availableDays.map(({ d, idx, iso }) => (
+                  <div className="flex gap-1 shrink-0 flex-wrap">
+                    {availableDays.map(({ d, dayName, iso }) => (
                       <button
                         key={iso}
                         onClick={() => handleSetDay(a, iso)}
                         disabled={saving === a.id}
-                        title={`Plan for ${DAY_NAMES[idx]} ${d.getDate()}`}
+                        title={`Plan for ${dayName} ${d.getDate()}`}
                         className="rounded px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-700 transition-colors disabled:opacity-50"
                       >
-                        {DAY_NAMES[idx]}
+                        {dayName} {d.getDate()}
                       </button>
                     ))}
                   </div>

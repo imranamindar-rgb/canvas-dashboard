@@ -71,7 +71,7 @@ export function Header({ health, loading, onRefresh }: Props) {
       <header className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">
-            Canvas Dashboard by Imran Dar
+            Canvas Dashboard <span className="text-sm font-normal text-gray-400">by Imran Dar</span>
           </h1>
           <p className="text-sm text-gray-500" title={sync?.absolute ?? ""}>
             Last sync: {sync ? sync.relative : "never"}
