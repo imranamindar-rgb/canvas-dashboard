@@ -5,7 +5,7 @@ export interface Assignment {
   name: string;
   course_name: string;
   course_id: number;
-  due_at: string;
+  due_at: string | null;
   points_possible: number | null;
   urgency: Urgency;
   html_url: string;
@@ -16,6 +16,9 @@ export interface Assignment {
   source: "canvas" | "email";
   email_subject?: string;
   email_date?: string;
+  next_action?: string | null;
+  effort?: "S" | "M" | "L" | "XL" | null;
+  planned_day?: string | null;
 }
 
 export interface Stats {
@@ -31,4 +34,6 @@ export interface HealthStatus {
   last_sync: string | null;
   assignment_count: number;
   error: string | null;
+  sync_errors: string[];
+  anthropic_available: boolean;
 }

@@ -20,9 +20,11 @@ export function computeStats(assignments: Assignment[]): Stats {
   for (const a of active) {
     urgencyCounts[a.urgency]++;
     courseCounts[a.course_name] = (courseCounts[a.course_name] || 0) + 1;
-    const due = new Date(a.due_at);
-    if (due <= endOfToday) dueToday++;
-    if (due <= endOfWeek) dueThisWeek++;
+    if (a.due_at) {
+      const due = new Date(a.due_at);
+      if (due <= endOfToday) dueToday++;
+      if (due <= endOfWeek) dueThisWeek++;
+    }
   }
 
   return {

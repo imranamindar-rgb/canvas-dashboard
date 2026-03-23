@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import DOMPurify from "dompurify";
 import type { Assignment } from "../types";
 import { formatRelativeTime } from "../utils/formatRelativeTime";
@@ -203,96 +204,108 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
           </td>
         )}
       </tr>
-      {expanded && (
-        <tr className="border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50">
-          <td colSpan={6} className="px-6 py-4">
-            {/* Description */}
-            <div className="mb-3 text-sm text-gray-700 dark:text-zinc-300">
-              {assignment.description ? (
-                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(assignment.description) }} />
-              ) : (
-                <p className="italic text-gray-400 dark:text-zinc-500">No description</p>
-              )}
-            </div>
+      <AnimatePresence>
+        {expanded && (
+          <tr className="border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50">
+            <td colSpan={6} className="px-0 py-0">
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="px-6 py-4">
+                  {/* Description */}
+                  <div className="mb-3 text-sm text-gray-700 dark:text-zinc-300">
+                    {assignment.description ? (
+                      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(assignment.description) }} />
+                    ) : (
+                      <p className="italic text-gray-400 dark:text-zinc-500">No description</p>
+                    )}
+                  </div>
 
-            <hr className="border-gray-200 dark:border-zinc-700 mb-3" />
+                  <hr className="border-gray-200 dark:border-zinc-700 mb-3" />
 
-            {/* Next Action editor */}
-            <div className="mt-3">
-              <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">Next Action</label>
-              <div className="mt-1 flex gap-2">
-                <input
-                  type="text"
-                  value={editingNextAction}
-                  onChange={(e) => setEditingNextAction(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  maxLength={500}
-                  placeholder="What's the first physical action?"
-                  className="flex-1 rounded-md border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 px-3 py-1.5 text-sm focus:border-indigo-500 dark:focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                />
-                {anthropicAvailable !== false && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleSuggestNextAction(); }}
-                    disabled={nextActionSuggestLoading}
-                    className="rounded-md border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 disabled:opacity-50"
-                    title="Ask Claude to suggest a next action"
-                    aria-label="Suggest next action with Claude"
+                  {/* Next Action editor */}
+                  <div className="mt-3">
+                    <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">Next Action</label>
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={editingNextAction}
+                        onChange={(e) => setEditingNextAction(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        maxLength={500}
+                        placeholder="What's the first physical action?"
+                        className="flex-1 rounded-md border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 px-3 py-1.5 text-sm focus:border-indigo-500 dark:focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                      />
+                      {anthropicAvailable !== false && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleSuggestNextAction(); }}
+                          disabled={nextActionSuggestLoading}
+                          className="rounded-md border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 disabled:opacity-50"
+                          title="Ask Claude to suggest a next action"
+                          aria-label="Suggest next action with Claude"
+                        >
+                          {nextActionSuggestLoading ? "Suggesting..." : "\u2726 Suggest"}
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleSaveNextAction(); }}
+                        disabled={nextActionSaving || editingNextAction === (assignment.next_action ?? "")}
+                        className="rounded-md bg-gray-900 dark:bg-zinc-100 px-3 py-1.5 text-xs font-medium text-white dark:text-zinc-900 hover:bg-gray-700 dark:hover:bg-zinc-200 disabled:opacity-50"
+                      >
+                        {nextActionSaving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                    {nextActionError && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{nextActionError}</p>}
+                  </div>
+
+                  <hr className="border-gray-200 dark:border-zinc-700 mt-3 mb-3" />
+
+                  {/* Effort selector */}
+                  <div className="mt-3">
+                    <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">Effort</label>
+                    <div className="mt-1 flex gap-1.5">
+                      {(["S", "M", "L", "XL"] as const).map((e) => (
+                        <button
+                          key={e}
+                          onClick={(ev) => { ev.stopPropagation(); handleSetEffort(e); }}
+                          disabled={effortSaving}
+                          className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                            assignment.effort === e
+                              ? "bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                              : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                          }`}
+                          aria-pressed={assignment.effort === e}
+                          aria-label={`Set effort to ${e}`}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                    {effortError && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{effortError}</p>}
+                  </div>
+
+                  <hr className="border-gray-200 dark:border-zinc-700 mt-3 mb-3" />
+
+                  <a
+                    href={assignment.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                   >
-                    {nextActionSuggestLoading ? "Suggesting..." : "\u2726 Suggest"}
-                  </button>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleSaveNextAction(); }}
-                  disabled={nextActionSaving || editingNextAction === (assignment.next_action ?? "")}
-                  className="rounded-md bg-gray-900 dark:bg-zinc-100 px-3 py-1.5 text-xs font-medium text-white dark:text-zinc-900 hover:bg-gray-700 dark:hover:bg-zinc-200 disabled:opacity-50"
-                >
-                  {nextActionSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
-              {nextActionError && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{nextActionError}</p>}
-            </div>
-
-            <hr className="border-gray-200 dark:border-zinc-700 mt-3 mb-3" />
-
-            {/* Effort selector */}
-            <div className="mt-3">
-              <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">Effort</label>
-              <div className="mt-1 flex gap-1.5">
-                {(["S", "M", "L", "XL"] as const).map((e) => (
-                  <button
-                    key={e}
-                    onClick={(ev) => { ev.stopPropagation(); handleSetEffort(e); }}
-                    disabled={effortSaving}
-                    className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                      assignment.effort === e
-                        ? "bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
-                        : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"
-                    }`}
-                    aria-pressed={assignment.effort === e}
-                    aria-label={`Set effort to ${e}`}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-              {effortError && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{effortError}</p>}
-            </div>
-
-            <hr className="border-gray-200 dark:border-zinc-700 mt-3 mb-3" />
-
-            <a
-              href={assignment.html_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-            >
-              Open in Canvas &rarr;
-            </a>
-          </td>
-        </tr>
-      )}
+                    Open in Canvas &rarr;
+                  </a>
+                </div>
+              </motion.div>
+            </td>
+          </tr>
+        )}
+      </AnimatePresence>
     </>
   );
 }

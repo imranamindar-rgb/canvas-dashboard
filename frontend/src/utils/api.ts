@@ -50,4 +50,15 @@ export const api = {
           }
         : {}),
     }),
+  put: <T>(url: string, body?: unknown, signal?: AbortSignal) =>
+    request<T>(url, {
+      method: "PUT",
+      signal,
+      ...(body
+        ? {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          }
+        : {}),
+    }),
 };

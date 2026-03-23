@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import type { Stats } from "../types";
 
 interface Props {
@@ -9,7 +10,7 @@ export function SummaryBar({ stats }: Props) {
     return (
       <div className="flex gap-3 px-4 py-3 sm:px-6">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 w-32 animate-pulse rounded-lg bg-gray-200 dark:bg-zinc-800" />
+          <div key={i} className="h-16 w-32 animate-pulse shimmer rounded-lg bg-gray-200 dark:bg-zinc-800" />
         ))}
       </div>
     );
@@ -28,9 +29,15 @@ export function SummaryBar({ stats }: Props) {
           key={label}
           className={`flex flex-col rounded-lg px-4 py-2.5 ${bg}`}
         >
-          <span className={`text-2xl font-bold tabular-nums ${accent}`}>
+          <motion.span
+            key={value}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`text-2xl font-bold tabular-nums ${accent}`}
+          >
             {value}
-          </span>
+          </motion.span>
           <span className="text-xs text-gray-500 dark:text-zinc-500">
             {label}
           </span>

@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAssignments } from "./hooks/useAssignments";
 import { useCalendar } from "./hooks/useCalendar";
 import { useEmail } from "./hooks/useEmail";
@@ -216,124 +217,149 @@ export default function App() {
         activeCourse={courseFilter}
         onSelect={setCourseFilter}
       />
-      {currentView === "dashboard" && (
-        <>
-          <div className="flex flex-wrap items-center gap-4 px-4 py-2 sm:px-6">
-            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-zinc-400 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showSubmitted}
-                onChange={(e) => setShowSubmitted(e.target.checked)}
-                className="rounded border-gray-300 dark:border-zinc-600"
-              />
-              Show completed
-            </label>
-            <div className="flex items-center gap-1" role="group" aria-label="Group assignments by">
-              <span className="text-xs text-gray-500 dark:text-zinc-500 mr-1">Group by:</span>
-              {(["urgency", "course", "source", "none"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setGroupMode(mode)}
-                  aria-pressed={groupMode === mode}
-                  className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                    groupMode === mode
-                      ? "bg-gray-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
-                  }`}
-                >
-                  {mode === "none" ? "None" : mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <CalendarBar
-            authorized={authorized}
-            loading={calLoading}
-            syncing={syncing}
-            lastResult={lastResult}
-            error={calError}
-            onAuthorize={authorize}
-            onSync={syncToCalendar}
-            assignments={assignments}
-            lastCalSync={lastCalSync}
-          />
-          <EmailBar
-            authorized={emailAuthorized}
-            loading={emailLoading}
-            syncing={emailSyncing}
-            lastResult={emailLastResult}
-            error={emailError}
-            onSync={syncEmail}
-            taskCount={emailTasks.length}
-            onAuthorize={authorize}
-          />
-          {fetchError && (
-            <div className="mx-auto max-w-7xl px-4 py-2">
-              <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <svg className="h-5 w-5 shrink-0 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                  </svg>
-                  <span className="text-sm text-red-700 dark:text-red-400">
-                    Unable to load assignments. Please check your connection and try again.
-                  </span>
-                </div>
-                <button
-                  onClick={refresh}
-                  className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                >
-                  Retry
-                </button>
+      <AnimatePresence mode="wait">
+        {currentView === "dashboard" && (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex flex-wrap items-center gap-4 px-4 py-2 sm:px-6">
+              <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-zinc-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showSubmitted}
+                  onChange={(e) => setShowSubmitted(e.target.checked)}
+                  className="rounded border-gray-300 dark:border-zinc-600"
+                />
+                Show completed
+              </label>
+              <div className="flex items-center gap-1" role="group" aria-label="Group assignments by">
+                <span className="text-xs text-gray-500 dark:text-zinc-500 mr-1">Group by:</span>
+                {(["urgency", "course", "source", "none"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setGroupMode(mode)}
+                    aria-pressed={groupMode === mode}
+                    className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                      groupMode === mode
+                        ? "bg-gray-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    {mode === "none" ? "None" : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
-          <main className="mx-auto max-w-7xl px-4 py-4">
-            <div className="rounded-lg bg-white dark:bg-zinc-900 shadow-sm">
-              <AssignmentTable
-                assignments={allTasks}
-                loading={loading}
-                checkedIds={checkedIds}
-                onToggleChecked={toggleChecked}
-                groupByCourse={groupByCourse}
-                groupBySource={groupBySource}
-                groupByUrgency={groupByUrgency}
-                hasActiveFilters={hasActiveFilters}
-                searchQuery={searchQuery}
-                focusedId={focusedId}
-                expandedIds={expandedIds}
-                onToggleExpand={handleToggleExpand}
-                onMetaChange={handleMetaChange}
-                anthropicAvailable={health?.anthropic_available ?? true}
-              />
+            <CalendarBar
+              authorized={authorized}
+              loading={calLoading}
+              syncing={syncing}
+              lastResult={lastResult}
+              error={calError}
+              onAuthorize={authorize}
+              onSync={syncToCalendar}
+              assignments={assignments}
+              lastCalSync={lastCalSync}
+            />
+            <EmailBar
+              authorized={emailAuthorized}
+              loading={emailLoading}
+              syncing={emailSyncing}
+              lastResult={emailLastResult}
+              error={emailError}
+              onSync={syncEmail}
+              taskCount={emailTasks.length}
+              onAuthorize={authorize}
+            />
+            {fetchError && (
+              <div className="mx-auto max-w-7xl px-4 py-2">
+                <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="h-5 w-5 shrink-0 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                    </svg>
+                    <span className="text-sm text-red-700 dark:text-red-400">
+                      Unable to load assignments. Please check your connection and try again.
+                    </span>
+                  </div>
+                  <button
+                    onClick={refresh}
+                    className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+            <main className="mx-auto max-w-7xl px-4 py-4">
+              <div className="rounded-lg bg-white dark:bg-zinc-900 shadow-sm">
+                <AssignmentTable
+                  assignments={allTasks}
+                  loading={loading}
+                  checkedIds={checkedIds}
+                  onToggleChecked={toggleChecked}
+                  groupByCourse={groupByCourse}
+                  groupBySource={groupBySource}
+                  groupByUrgency={groupByUrgency}
+                  hasActiveFilters={hasActiveFilters}
+                  searchQuery={searchQuery}
+                  focusedId={focusedId}
+                  expandedIds={expandedIds}
+                  onToggleExpand={handleToggleExpand}
+                  onMetaChange={handleMetaChange}
+                  anthropicAvailable={health?.anthropic_available ?? true}
+                />
+              </div>
+            </main>
+          </motion.div>
+        )}
+        {currentView === "plan" && (
+          <motion.div
+            key="plan"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <WeeklyPlan
+              assignments={allTasks}
+              onSetPlannedDay={planSetDay}
+              onSyncCalendar={syncToCalendar}
+              syncing={syncing}
+              viewFilter={viewFilter}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {lastCheckedId !== null && (
+          <motion.div
+            key="undo-toast"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2"
+          >
+            <div className="flex items-center gap-3 rounded-lg bg-gray-900 dark:bg-zinc-800 px-4 py-3 text-sm text-white shadow-lg">
+              <svg className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Assignment marked done</span>
+              <button
+                onClick={undoLastCheck}
+                className="ml-2 rounded px-2 py-0.5 font-medium text-blue-300 hover:text-blue-200 hover:bg-gray-800 dark:hover:bg-zinc-700 transition-colors"
+              >
+                Undo
+              </button>
             </div>
-          </main>
-        </>
-      )}
-      {currentView === "plan" && (
-        <WeeklyPlan
-          assignments={allTasks}
-          onSetPlannedDay={planSetDay}
-          onSyncCalendar={syncToCalendar}
-          syncing={syncing}
-          viewFilter={viewFilter}
-        />
-      )}
-      {lastCheckedId !== null && (
-        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-3 rounded-lg bg-gray-900 dark:bg-zinc-800 px-4 py-3 text-sm text-white shadow-lg">
-            <svg className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Assignment marked done</span>
-            <button
-              onClick={undoLastCheck}
-              className="ml-2 rounded px-2 py-0.5 font-medium text-blue-300 hover:text-blue-200 hover:bg-gray-800 dark:hover:bg-zinc-700 transition-colors"
-            >
-              Undo
-            </button>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
     </ErrorBoundary>
   );
