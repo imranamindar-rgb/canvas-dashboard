@@ -27,8 +27,12 @@ Upgrade the Canvas Dashboard from a functional but utilitarian tool (overall 7.0
 
 - Theme state persisted in `localStorage` key `theme`.
 - Default: dark. Toggle button in header (sun/moon icon).
-- Implementation: CSS custom properties on `:root` toggled by `data-theme="dark|light"` on `<html>`. Tailwind `dark:` variant wired to `[data-theme="dark"]` selector.
-- New utility: `useTheme()` hook — returns `{ theme, toggle }`.
+- Implementation: CSS custom properties on `:root` toggled by `data-theme="dark|light"` on `<html>`. Since this project uses Tailwind CSS v4 (no `tailwind.config.js`), the dark mode variant is configured via a `@variant` directive in `index.css`:
+  ```css
+  @variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+  ```
+  This wires all `dark:` utility classes to the `data-theme` attribute.
+- New utility: `useTheme()` hook — returns `{ theme, toggle }`. Reads/writes `localStorage` key `theme` and sets `data-theme` attribute on `document.documentElement`.
 
 ### 1.3 Component Redesign
 
@@ -75,7 +79,7 @@ State machine: `welcome → canvas → google → done`. Each step validates bef
 - Each day column is a `useDroppable` zone with id `day-YYYY-MM-DD`.
 - Unscheduled sections are droppable zones with id `unscheduled-{week}`.
 - Each assignment card is a `useDraggable` item with id matching assignment id.
-- On `onDragEnd`: call `PUT /api/assignments/{id}/planned-day` with new date (or null if dropped back to unscheduled).
+- On `onDragEnd`: call existing `PUT /api/assignments/{id}/planned-day` endpoint (already implemented in `app.py`) with new date (or null if dropped back to unscheduled). No backend changes needed for this endpoint.
 - Optimistic update: move card immediately, rollback on API error.
 - Visual feedback: drag overlay (semi-transparent clone), drop zone highlight (dashed border + background tint), spring animation on drop.
 
@@ -127,26 +131,42 @@ Replace inline row expansion with a slide-out side panel on desktop (keep inline
 
 ### 3.1 Password Gate
 
-- Env var: `DASHBOARD_PASSWORD` (required in production, optional in dev).
-- Frontend: Full-screen password input on load. On submit, POST to `/api/auth` with `{ password }`.
-- Backend: `/api/auth` compares with `DASHBOARD_PASSWORD` env var. On match, returns a session token (random UUID stored in server memory with TTL of 7 days).
-- Token stored in `localStorage` and sent as `Authorization: Bearer {token}` header on all API calls.
-- All `/api/*` routes (except `/api/auth` and `/api/health`) check for valid token. Return 401 if missing/invalid.
+- Env var: `DASHBOARD_PASSWORD` (required in production, optional in dev — if unset, auth is skipped).
+- Frontend: Full-screen password input on load. On submit, POST to `/api/auth` with `{ "password": "..." }`.
+- Backend: `/api/auth` compares with `DASHBOARD_PASSWORD` env var using `secrets.compare_digest()`. On match, returns:
+  ```json
+  { "token": "uuid-v4-string", "csrf_token": "hex-string", "expires_at": "ISO-datetime" }
+  ```
+- Token storage: Tokens stored in SQLite (new `auth_sessions` table) rather than server memory, so they survive Render cold starts and redeploys. Schema:
+  ```sql
+  CREATE TABLE auth_sessions (
+      token TEXT PRIMARY KEY,
+      csrf_token TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL
+  );
+  ```
+  Expired tokens cleaned up on each auth check.
+- Frontend stores token in `localStorage` and sends as `Authorization: Bearer {token}` header on all API calls. The `api.ts` utility must be extended to read the token from `localStorage` and inject the `Authorization` header as a default on every request (in `get()`, `post()`, `put()` methods). On 401 response, `api.ts` clears the stored token and redirects to the login screen.
+- All `/api/*` routes (except `/api/auth` and `/api/health`) check for valid token via a `@require_auth` decorator. Return 401 `{ "error": "unauthorized" }` if missing/invalid.
 - Logout: clear localStorage token. No backend endpoint needed.
-- Rate limit login attempts: 5 per minute per IP.
+- Rate limit login attempts: 5 per minute per IP (using existing `flask-limiter`).
 
 ### 3.2 Credential Cleanup
 
-- Remove `backend/google_credentials.json` from git tracking: `git rm --cached`.
-- Add `google_credentials.json` to `.gitignore`.
+- Remove `backend/google_credentials.json` from git tracking: `git rm --cached backend/google_credentials.json`. The file is already in `.gitignore` but is still tracked — this untracking step is the fix.
 - Update README and onboarding to use `GOOGLE_CLIENT_JSON` env var exclusively.
-- Remove fallback to file-based credentials in `gcal_client.py._load_client_config()` for production (keep for local dev).
+- Keep file-based fallback in `gcal_client.py._load_client_config()` for local dev convenience, but document env var as the primary/production method.
 
 ### 3.3 CSRF Protection
 
-- Backend generates CSRF token on auth, returned in `/api/auth` response.
-- Frontend sends as `X-CSRF-Token` header on POST/PUT/DELETE.
-- Backend middleware validates on state-changing routes.
+Custom implementation (no additional Python dependency needed):
+
+- **Generation**: CSRF token generated via `secrets.token_hex(32)` at login time, returned in the `/api/auth` response alongside the session token.
+- **Storage**: CSRF token stored in the `auth_sessions` SQLite table (paired with the session token). Frontend stores it in `localStorage` alongside the auth token.
+- **Rotation**: One CSRF token per session (rotates only on new login, not per request). This is acceptable for a single-user app.
+- **Validation**: Backend `@require_auth` decorator also validates `X-CSRF-Token` header on POST/PUT/DELETE requests. GET requests are exempt.
+- **Frontend**: `api.ts` sends `X-CSRF-Token` header on `post()` and `put()` calls, reading from `localStorage`.
 
 ### 3.4 Email Task Persistence
 
@@ -161,7 +181,7 @@ CREATE TABLE email_tasks (
     email_date TEXT,
     description TEXT,
     html_url TEXT,
-    source_message_id TEXT,       -- Gmail message ID
+    source_message_id TEXT,       -- Gmail message ID, extracted from id field ("email-{message_id}-{index}" → message_id)
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -178,7 +198,7 @@ CREATE TABLE email_tasks (
 
 ### 4.1 Frontend Component Tests
 
-Using Vitest + Testing Library (already configured):
+Using Vitest + Testing Library (already configured). Test files co-located with components (e.g., `src/components/Header.test.tsx` beside `src/components/Header.tsx`). This follows Vitest defaults which discover `*.test.ts(x)` anywhere under `src/`.
 
 - `Header.test.tsx`: Theme toggle, sync status display, settings modal.
 - `AssignmentTable.test.tsx`: Rendering with groups, empty states, sort toggling.
@@ -273,6 +293,8 @@ Enhance `/api/health` response:
 ```
 
 Structured JSON logging via Python `logging` with JSON formatter.
+
+**Frontend type update**: The `HealthStatus` interface in `types.ts` must be extended with the new fields (`uptime_seconds`, `last_sync_duration_ms`, `email_task_count`, `google_authorized`, `canvas_configured`) to avoid TypeScript errors when consuming the enhanced response.
 
 ### 5.3 Performance
 
