@@ -26,15 +26,22 @@ export function EmailBar({
     : "Not connected";
 
   return (
-    <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
+    <div className="flex flex-col gap-3 border-b border-gray-200 dark:border-zinc-800 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
       <div className="flex items-center gap-2">
         <span
           className={`inline-block h-2 w-2 rounded-full ${
-            authorized ? "bg-purple-500" : "bg-gray-300"
+            authorized ? "bg-purple-500" : "bg-gray-300 dark:bg-zinc-600"
           }`}
         />
-        <span className="text-sm text-gray-600">
-          Email Tasks: {statusText}
+        <span className="text-sm text-gray-600 dark:text-zinc-400">
+          Email Tasks:{" "}
+          {authorized ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 text-xs font-medium text-purple-700 dark:text-purple-400">
+              {statusText}
+            </span>
+          ) : (
+            statusText
+          )}
         </span>
       </div>
 
@@ -42,6 +49,7 @@ export function EmailBar({
         <button
           onClick={onAuthorize}
           disabled={loading}
+          aria-label="Authorize Google for Email Tasks"
           className="rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-purple-500 disabled:opacity-50"
         >
           Authorize Google
@@ -59,10 +67,10 @@ export function EmailBar({
       )}
 
       {lastResult && (
-        <span className="text-sm text-green-600">{lastResult}</span>
+        <span className="text-sm text-green-600 dark:text-green-400">{lastResult}</span>
       )}
 
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
     </div>
   );
 }
