@@ -18,8 +18,8 @@ export function CourseFilter({ stats, activeCourse, onSelect }: Props) {
         aria-pressed={activeCourse === null}
         className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
           activeCourse === null
-            ? "bg-gray-900 text-white"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            ? "bg-gray-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
         }`}
       >
         All Courses
@@ -31,8 +31,8 @@ export function CourseFilter({ stats, activeCourse, onSelect }: Props) {
           aria-pressed={activeCourse === name}
           className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
             activeCourse === name
-              ? "bg-gray-900 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              ? "bg-gray-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
           }`}
         >
           {name}

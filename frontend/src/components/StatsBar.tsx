@@ -1,11 +1,11 @@
 import type { Stats, Urgency } from "../types";
 
 const TIERS: { key: Urgency; label: string; color: string; activeColor: string }[] = [
-  { key: "overdue", label: "Overdue", color: "bg-gray-200 text-gray-600", activeColor: "bg-gray-700 text-white" },
-  { key: "critical", label: "Critical", color: "bg-red-100 text-red-800", activeColor: "bg-red-600 text-white" },
-  { key: "high", label: "High", color: "bg-orange-100 text-orange-800", activeColor: "bg-orange-500 text-white" },
-  { key: "medium", label: "Medium", color: "bg-blue-100 text-blue-800", activeColor: "bg-blue-600 text-white" },
-  { key: "runway", label: "Runway", color: "bg-green-100 text-green-800", activeColor: "bg-green-600 text-white" },
+  { key: "overdue", label: "Overdue", color: "bg-gray-200 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400", activeColor: "bg-gray-700 text-white dark:bg-zinc-300 dark:text-zinc-900" },
+  { key: "critical", label: "Critical", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", activeColor: "bg-red-600 text-white dark:bg-red-500 dark:text-white" },
+  { key: "high", label: "High", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400", activeColor: "bg-orange-500 text-white dark:bg-orange-500 dark:text-white" },
+  { key: "medium", label: "Medium", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400", activeColor: "bg-blue-600 text-white dark:bg-blue-500 dark:text-white" },
+  { key: "runway", label: "Runway", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400", activeColor: "bg-green-600 text-white dark:bg-green-600 dark:text-white" },
 ];
 
 interface Props {
@@ -31,7 +31,7 @@ export function StatsBar({ stats, activeUrgency, onSelect }: Props) {
               isActive
                 ? activeColor
                 : isZero
-                  ? "bg-gray-100 text-gray-400 cursor-default"
+                  ? "bg-gray-100 text-gray-400 dark:bg-zinc-800/50 dark:text-zinc-600 cursor-default"
                   : `${color} hover:opacity-80`
             }`}
           >

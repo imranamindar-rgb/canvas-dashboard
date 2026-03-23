@@ -1,15 +1,18 @@
+import React from "react";
+
 interface Props {
   query: string;
   onChange: (query: string) => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
-export function SearchBar({ query, onChange }: Props) {
+export function SearchBar({ query, onChange, inputRef }: Props) {
   return (
     <div className="relative mx-auto max-w-7xl px-4 py-3 sm:px-6">
       <div className="relative">
         {/* Search icon */}
         <svg
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-zinc-500"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -22,18 +25,19 @@ export function SearchBar({ query, onChange }: Props) {
           />
         </svg>
         <input
+          ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Search assignments..."
           aria-label="Search assignments"
-          className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-9 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-gray-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-200"
+          className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-9 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-gray-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:ring-zinc-600 dark:focus:border-zinc-600 dark:focus:bg-zinc-800"
         />
         {/* Clear button */}
         {query && (
           <button
             onClick={() => onChange("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 transition-colors dark:text-zinc-500 dark:hover:text-zinc-300"
             aria-label="Clear search"
           >
             <svg
