@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+/* Wire dark: variant to data-theme attribute (Tailwind CSS v4) */
+@variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Base styles */
+@layer base {
+  :root {
+    --color-surface: 250 250 250;
+    --color-surface-raised: 255 255 255;
+    --color-surface-overlay: 243 244 246;
+    --color-border: 229 231 235;
+    --color-text-primary: 17 24 39;
+    --color-text-secondary: 107 114 128;
+    --color-text-muted: 156 163 175;
+    --color-accent: 99 102 241;
+  }
+
+  [data-theme="dark"] {
+    --color-surface: 9 9 11;
+    --color-surface-raised: 24 24 27;
+    --color-surface-overlay: 39 39 42;
+    --color-border: 63 63 70;
+    --color-text-primary: 244 244 245;
+    --color-text-secondary: 161 161 170;
+    --color-text-muted: 113 113 122;
+    --color-accent: 129 140 248;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
