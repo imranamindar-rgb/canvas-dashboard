@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import type { Assignment } from "../types";
+import { useState, useMemo, useCallback } from "react";
+import type { Assignment, Urgency } from "../types";
 import { AssignmentRow } from "./AssignmentRow";
 import { AssignmentCard } from "./AssignmentCard";
 
@@ -25,6 +25,30 @@ function groupAssignmentsBySource(assignments: Assignment[]) {
   return groups;
 }
 
+const URGENCY_ORDER = ["overdue", "critical", "high", "medium", "runway"] as const;
+
+function groupAssignmentsByUrgency(assignments: Assignment[]) {
+  return URGENCY_ORDER
+    .map((urgency) => ({
+      urgency,
+      items: assignments.filter((a) => a.urgency === urgency),
+    }))
+    .filter((g) => g.items.length > 0);
+}
+
+const URGENCY_SECTION_STYLES: Record<Urgency, {
+  headerBg: string;
+  headerText: string;
+  leftBorder: string;
+  icon: string;
+}> = {
+  overdue:  { headerBg: "bg-gray-50 dark:bg-zinc-800/50",   headerText: "text-gray-600 dark:text-zinc-400",   leftBorder: "border-l-4 border-l-gray-300 dark:border-l-zinc-500",   icon: "⏰" },
+  critical: { headerBg: "bg-red-50 dark:bg-red-900/20",     headerText: "text-red-700 dark:text-red-400",     leftBorder: "border-l-4 border-l-red-400 dark:border-l-red-500",     icon: "⚡" },
+  high:     { headerBg: "bg-orange-50 dark:bg-orange-900/20",headerText: "text-orange-700 dark:text-orange-400",leftBorder: "border-l-4 border-l-orange-400 dark:border-l-orange-500", icon: "🔥" },
+  medium:   { headerBg: "bg-blue-50 dark:bg-blue-900/20",   headerText: "text-blue-700 dark:text-blue-400",   leftBorder: "border-l-4 border-l-blue-400 dark:border-l-blue-500",   icon: "●" },
+  runway:   { headerBg: "bg-green-50 dark:bg-green-900/20", headerText: "text-green-700 dark:text-green-400", leftBorder: "border-l-4 border-l-green-400 dark:border-l-green-500",  icon: "✓" },
+};
+
 interface Props {
   assignments: Assignment[];
   loading: boolean;
@@ -32,23 +56,49 @@ interface Props {
   onToggleChecked: (id: number | string) => void;
   groupByCourse: boolean;
   groupBySource: boolean;
+  groupByUrgency?: boolean;
   hasActiveFilters?: boolean;
   searchQuery?: string;
+  focusedId?: string | number | null;
+  expandedIds?: Set<string | number>;
+  onToggleExpand?: (id: string | number) => void;
+  onMetaChange?: () => void;
+  anthropicAvailable?: boolean;
 }
 
-export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, hasActiveFilters, searchQuery }: Props) {
+export function AssignmentTable({ assignments, loading, checkedIds, onToggleChecked, groupByCourse, groupBySource, groupByUrgency, hasActiveFilters, searchQuery, focusedId, expandedIds, onToggleExpand, onMetaChange, anthropicAvailable }: Props) {
   const [collapsedCourses, setCollapsedCourses] = useState<Set<string>>(new Set());
+  const [collapsedUrgency, setCollapsedUrgency] = useState<Set<string>>(() => new Set(["runway"]));
+  const [collapsedSources, setCollapsedSources] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<"course" | "name" | "due" | "points" | "urgency">("due");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const toggleCourseCollapse = (name: string) => {
+  const toggleCourseCollapse = useCallback((name: string) => {
     setCollapsedCourses((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
     });
-  };
+  }, []);
+
+  const toggleUrgencyCollapse = useCallback((urgency: string) => {
+    setCollapsedUrgency((prev) => {
+      const next = new Set(prev);
+      if (next.has(urgency)) next.delete(urgency);
+      else next.add(urgency);
+      return next;
+    });
+  }, []);
+
+  const toggleSourceCollapse = useCallback((label: string) => {
+    setCollapsedSources((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }, []);
 
   const handleSort = (key: typeof sortKey) => {
     if (sortKey === key) {
@@ -61,13 +111,18 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
 
   const sorted = useMemo(() => {
     const copy = [...assignments];
-    const urgencyOrder: Record<string, number> = { overdue: 0, critical: 1, high: 2, medium: 3, runway: 4 };
+    const urgencyOrder: Partial<Record<Urgency, number>> = { overdue: 0, critical: 1, high: 2, medium: 3, runway: 4 };
     copy.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
         case "course": cmp = a.course_name.localeCompare(b.course_name); break;
         case "name": cmp = a.name.localeCompare(b.name); break;
-        case "due": cmp = new Date(a.due_at).getTime() - new Date(b.due_at).getTime(); break;
+        case "due": {
+          const aTime = a.due_at ? new Date(a.due_at).getTime() : Infinity;
+          const bTime = b.due_at ? new Date(b.due_at).getTime() : Infinity;
+          cmp = aTime - bTime;
+          break;
+        }
         case "points": cmp = (a.points_possible ?? 0) - (b.points_possible ?? 0); break;
         case "urgency": cmp = (urgencyOrder[a.urgency] ?? 5) - (urgencyOrder[b.urgency] ?? 5); break;
       }
@@ -76,12 +131,25 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
     return copy;
   }, [assignments, sortKey, sortDirection]);
 
+  const groups = useMemo(
+    () => groupByCourse ? groupAssignmentsByCourse(sorted) : null,
+    [sorted, groupByCourse]
+  );
+  const sourceGroups = useMemo(
+    () => groupBySource ? groupAssignmentsBySource(sorted) : null,
+    [sorted, groupBySource]
+  );
+  const urgencyGroups = useMemo(
+    () => groupByUrgency ? groupAssignmentsByUrgency(sorted) : null,
+    [sorted, groupByUrgency]
+  );
+
   if (loading && assignments.length === 0) {
     return (
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+            <tr className="border-b border-gray-200 dark:border-zinc-800 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">
               <th className="w-10 px-3 py-3"></th>
               <th className="px-6 py-3">Course</th>
               <th className="px-6 py-3">Assignment</th>
@@ -92,13 +160,13 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
           </thead>
           <tbody>
             {Array.from({ length: 5 }).map((_, i) => (
-              <tr key={i} className="border-b border-gray-100 animate-pulse">
-                <td className="px-3 py-3"><div className="h-5 w-5 rounded bg-gray-200" /></td>
-                <td className="px-6 py-3"><div className="h-4 w-20 rounded bg-gray-200" /></td>
-                <td className="px-6 py-3"><div className="h-4 w-40 rounded bg-gray-200" /></td>
-                <td className="px-6 py-3"><div className="h-4 w-28 rounded bg-gray-200" /></td>
-                <td className="px-6 py-3 text-right"><div className="ml-auto h-4 w-8 rounded bg-gray-200" /></td>
-                <td className="px-6 py-3"><div className="h-5 w-16 rounded-full bg-gray-200" /></td>
+              <tr key={i} className="border-b border-gray-100 dark:border-zinc-800 animate-pulse">
+                <td className="px-3 py-3"><div className="h-5 w-5 rounded bg-gray-200 dark:bg-zinc-800" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-20 rounded bg-gray-200 dark:bg-zinc-800" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-40 rounded bg-gray-200 dark:bg-zinc-800" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-28 rounded bg-gray-200 dark:bg-zinc-800" /></td>
+                <td className="px-6 py-3 text-right"><div className="ml-auto h-4 w-8 rounded bg-gray-200 dark:bg-zinc-800" /></td>
+                <td className="px-6 py-3"><div className="h-5 w-16 rounded-full bg-gray-200 dark:bg-zinc-800" /></td>
               </tr>
             ))}
           </tbody>
@@ -109,20 +177,20 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
 
   if (assignments.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-zinc-500">
         {searchQuery ? (
           <>
-            <p className="text-lg font-medium text-gray-500">No results for &ldquo;{searchQuery}&rdquo;</p>
+            <p className="text-lg font-medium text-gray-500 dark:text-zinc-400">No results for &ldquo;{searchQuery}&rdquo;</p>
             <p className="mt-1 text-sm">Try a different search term</p>
           </>
         ) : hasActiveFilters ? (
           <>
-            <p className="text-lg font-medium text-gray-500">No assignments match your filters</p>
+            <p className="text-lg font-medium text-gray-500 dark:text-zinc-400">No assignments match your filters</p>
             <p className="mt-1 text-sm">Try removing some filters</p>
           </>
         ) : (
           <>
-            <p className="text-lg font-medium text-gray-500">You&rsquo;re all caught up!</p>
+            <p className="text-lg font-medium text-gray-500 dark:text-zinc-400">You&rsquo;re all caught up!</p>
             <p className="mt-1 text-sm">No upcoming assignments</p>
           </>
         )}
@@ -130,21 +198,76 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
     );
   }
 
-  const groups = groupByCourse ? groupAssignmentsByCourse(sorted) : null;
-  const sourceGroups = groupBySource ? groupAssignmentsBySource(sorted) : null;
-
   const renderDesktopRows = () => {
-    if (groups) {
+    if (urgencyGroups) {
+      return urgencyGroups.map(({ urgency, items }) => {
+        const style = URGENCY_SECTION_STYLES[urgency];
+        return (
+          <tbody key={urgency}>
+            <tr
+              onClick={() => toggleUrgencyCollapse(urgency)}
+              tabIndex={0}
+              role="button"
+              aria-expanded={!collapsedUrgency.has(urgency)}
+              aria-label={`${urgency} section, ${items.length} item${items.length !== 1 ? "s" : ""}`}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleUrgencyCollapse(urgency); } }}
+              className={`cursor-pointer transition-colors ${style.headerBg} hover:brightness-95`}
+            >
+              <td colSpan={6} className={`px-4 py-2.5 ${style.leftBorder}`}>
+                <div className="flex items-center gap-2">
+                  <svg
+                    className={`h-4 w-4 transition-transform duration-200 ${collapsedUrgency.has(urgency) ? "" : "rotate-90"} ${style.headerText}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span className="text-base">{style.icon}</span>
+                  <span className={`text-sm font-semibold uppercase tracking-wide ${style.headerText}`}>
+                    {urgency}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.headerBg} ${style.headerText}`}>
+                    {items.length}
+                  </span>
+                </div>
+              </td>
+            </tr>
+            {!collapsedUrgency.has(urgency) &&
+              items.map((a) => (
+                <AssignmentRow
+                  key={a.id}
+                  assignment={a}
+                  checked={a.submitted || checkedIds.has(a.id)}
+                  onToggleChecked={onToggleChecked}
+                  focusedId={focusedId}
+                  expandedIds={expandedIds}
+                  onToggleExpand={onToggleExpand}
+                  showEffort={true}
+                  onMetaChange={onMetaChange}
+                  anthropicAvailable={anthropicAvailable}
+                />
+              ))}
+          </tbody>
+        );
+      });
+    } else if (groups) {
       return groups.map(({ courseName, items }) => (
         <tbody key={courseName}>
           <tr
             onClick={() => toggleCourseCollapse(courseName)}
-            className="cursor-pointer bg-gray-100 hover:bg-gray-200 transition-colors"
+            tabIndex={0}
+            role="button"
+            aria-expanded={!collapsedCourses.has(courseName)}
+            aria-label={`${courseName} section, ${items.length} item${items.length !== 1 ? "s" : ""}`}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCourseCollapse(courseName); } }}
+            className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
           >
             <td colSpan={6} className="px-6 py-3">
               <div className="flex items-center gap-2">
                 <svg
-                  className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                  className={`h-4 w-4 text-gray-500 dark:text-zinc-400 transition-transform duration-200 ${
                     collapsedCourses.has(courseName) ? "" : "rotate-90"
                   }`}
                   fill="none"
@@ -154,8 +277,8 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-                <span className="text-sm font-semibold text-gray-700">{courseName}</span>
-                <span className="text-xs text-gray-400">
+                <span className="text-sm font-semibold text-gray-700 dark:text-zinc-300">{courseName}</span>
+                <span className="text-xs text-gray-400 dark:text-zinc-500">
                   ({items.length} assignment{items.length !== 1 ? "s" : ""})
                 </span>
               </div>
@@ -168,6 +291,10 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                 assignment={a}
                 checked={a.submitted || checkedIds.has(a.id)}
                 onToggleChecked={onToggleChecked}
+                focusedId={focusedId}
+                expandedIds={expandedIds}
+                onToggleExpand={onToggleExpand}
+                onMetaChange={onMetaChange}
               />
             ))}
         </tbody>
@@ -176,37 +303,46 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
       return sourceGroups.map(({ label, items }) => (
         <tbody key={label}>
           <tr
-            onClick={() => toggleCourseCollapse(label)}
+            onClick={() => toggleSourceCollapse(label)}
+            tabIndex={0}
+            role="button"
+            aria-expanded={!collapsedSources.has(label)}
+            aria-label={`${label} section, ${items.length} item${items.length !== 1 ? "s" : ""}`}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSourceCollapse(label); } }}
             className={`cursor-pointer transition-colors ${
-              label === "Email" ? "bg-purple-50 hover:bg-purple-100" : "bg-blue-50 hover:bg-blue-100"
+              label === "Email" ? "bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30" : "bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30"
             }`}
           >
             <td colSpan={6} className="px-6 py-3">
               <div className="flex items-center gap-2">
                 <svg
-                  className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
-                    collapsedCourses.has(label) ? "" : "rotate-90"
+                  className={`h-4 w-4 text-gray-500 dark:text-zinc-400 transition-transform duration-200 ${
+                    collapsedSources.has(label) ? "" : "rotate-90"
                   }`}
                   fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
                 <span className={`text-sm font-semibold ${
-                  label === "Email" ? "text-purple-700" : "text-blue-700"
+                  label === "Email" ? "text-purple-700 dark:text-purple-400" : "text-blue-700 dark:text-blue-400"
                 }`}>{label}</span>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-400 dark:text-zinc-500">
                   ({items.length} item{items.length !== 1 ? "s" : ""})
                 </span>
               </div>
             </td>
           </tr>
-          {!collapsedCourses.has(label) &&
+          {!collapsedSources.has(label) &&
             items.map((a) => (
               <AssignmentRow
                 key={a.id}
                 assignment={a}
                 checked={a.submitted || checkedIds.has(a.id)}
                 onToggleChecked={onToggleChecked}
+                focusedId={focusedId}
+                expandedIds={expandedIds}
+                onToggleExpand={onToggleExpand}
+                onMetaChange={onMetaChange}
               />
             ))}
         </tbody>
@@ -220,6 +356,10 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
             assignment={a}
             checked={a.submitted || checkedIds.has(a.id)}
             onToggleChecked={onToggleChecked}
+            focusedId={focusedId}
+            expandedIds={expandedIds}
+            onToggleExpand={onToggleExpand}
+            onMetaChange={onMetaChange}
           />
         ))}
       </tbody>
@@ -227,15 +367,54 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
   };
 
   const renderMobileCards = () => {
-    if (groups) {
+    if (urgencyGroups) {
+      return urgencyGroups.map(({ urgency, items }) => {
+        const style = URGENCY_SECTION_STYLES[urgency];
+        return (
+          <div key={urgency}>
+            <button
+              onClick={() => toggleUrgencyCollapse(urgency)}
+              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 mb-2 transition-colors ${style.headerBg}`}
+            >
+              <svg
+                className={`h-4 w-4 transition-transform duration-200 ${collapsedUrgency.has(urgency) ? "" : "rotate-90"} ${style.headerText}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="text-base">{style.icon}</span>
+              <span className={`text-sm font-semibold uppercase tracking-wide ${style.headerText}`}>{urgency}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.headerBg} ${style.headerText}`}>
+                {items.length}
+              </span>
+            </button>
+            {!collapsedUrgency.has(urgency) && (
+              <div className="space-y-3 mb-4">
+                {items.map((a) => (
+                  <AssignmentCard
+                    key={a.id}
+                    assignment={a}
+                    checked={a.submitted || checkedIds.has(a.id)}
+                    onToggleChecked={onToggleChecked}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      });
+    } else if (groups) {
       return groups.map(({ courseName, items }) => (
         <div key={courseName}>
           <button
             onClick={() => toggleCourseCollapse(courseName)}
-            className="flex w-full items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 mb-2 transition-colors hover:bg-gray-200"
+            className="flex w-full items-center gap-2 rounded-lg bg-gray-100 dark:bg-zinc-800 px-3 py-2 mb-2 transition-colors hover:bg-gray-200 dark:hover:bg-zinc-700"
           >
             <svg
-              className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
+              className={`h-4 w-4 text-gray-500 dark:text-zinc-400 transition-transform duration-200 ${
                 collapsedCourses.has(courseName) ? "" : "rotate-90"
               }`}
               fill="none"
@@ -245,8 +424,8 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
-            <span className="text-sm font-semibold text-gray-700">{courseName}</span>
-            <span className="text-xs text-gray-400">({items.length})</span>
+            <span className="text-sm font-semibold text-gray-700 dark:text-zinc-300">{courseName}</span>
+            <span className="text-xs text-gray-400 dark:text-zinc-500">({items.length})</span>
           </button>
           {!collapsedCourses.has(courseName) && (
             <div className="space-y-3 mb-4">
@@ -266,14 +445,14 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
       return sourceGroups.map(({ label, items }) => (
         <div key={label}>
           <button
-            onClick={() => toggleCourseCollapse(label)}
+            onClick={() => toggleSourceCollapse(label)}
             className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 mb-2 transition-colors ${
-              label === "Email" ? "bg-purple-50 hover:bg-purple-100" : "bg-blue-50 hover:bg-blue-100"
+              label === "Email" ? "bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30" : "bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30"
             }`}
           >
             <svg
-              className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
-                collapsedCourses.has(label) ? "" : "rotate-90"
+              className={`h-4 w-4 text-gray-500 dark:text-zinc-400 transition-transform duration-200 ${
+                collapsedSources.has(label) ? "" : "rotate-90"
               }`}
               fill="none"
               viewBox="0 0 24 24"
@@ -283,11 +462,11 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
             <span className={`text-sm font-semibold ${
-              label === "Email" ? "text-purple-700" : "text-blue-700"
+              label === "Email" ? "text-purple-700 dark:text-purple-400" : "text-blue-700 dark:text-blue-400"
             }`}>{label}</span>
-            <span className="text-xs text-gray-400">({items.length})</span>
+            <span className="text-xs text-gray-400 dark:text-zinc-500">({items.length})</span>
           </button>
-          {!collapsedCourses.has(label) && (
+          {!collapsedSources.has(label) && (
             <div className="space-y-3 mb-4">
               {items.map((a) => (
                 <AssignmentCard
@@ -322,7 +501,7 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+            <tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">
               <th className="w-10 px-3 py-3"></th>
               <th className="px-6 py-3 cursor-pointer select-none" onClick={() => handleSort("course")}>
                 <div className="flex items-center gap-1">
@@ -344,11 +523,15 @@ export function AssignmentTable({ assignments, loading, checkedIds, onToggleChec
                   Points {sortKey === "points" && (sortDirection === "asc" ? "\u2191" : "\u2193")}
                 </div>
               </th>
-              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => handleSort("urgency")}>
-                <div className="flex items-center gap-1">
-                  Urgency {sortKey === "urgency" && (sortDirection === "asc" ? "\u2191" : "\u2193")}
-                </div>
-              </th>
+              {groupByUrgency ? (
+                <th className="px-3 py-3 text-center">Effort</th>
+              ) : (
+                <th className="px-6 py-3 cursor-pointer select-none" onClick={() => handleSort("urgency")}>
+                  <div className="flex items-center gap-1">
+                    Urgency {sortKey === "urgency" && (sortDirection === "asc" ? "\u2191" : "\u2193")}
+                  </div>
+                </th>
+              )}
             </tr>
           </thead>
           {renderDesktopRows()}
