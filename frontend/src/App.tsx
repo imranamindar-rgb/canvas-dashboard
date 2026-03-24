@@ -20,6 +20,7 @@ import { AssignmentTable } from "./components/AssignmentTable";
 import { SearchBar } from "./components/SearchBar";
 import { WeeklyPlan } from "./components/WeeklyPlan";
 import { CommandPalette } from "./components/CommandPalette";
+import { SidePanel } from "./components/SidePanel";
 
 export default function App() {
   const {
@@ -88,6 +89,12 @@ export default function App() {
   const allTasks = useMemo(() => [...assignments, ...emailTasks], [assignments, emailTasks]);
   const stats = useMemo(() => computeStats(allTasks), [allTasks]);
   const hasActiveFilters = !!(urgencyFilter || courseFilter || viewFilter);
+
+  const selectedAssignment = useMemo(() => {
+    if (expandedIds.size !== 1) return null;
+    const id = [...expandedIds][0];
+    return allTasks.find((a) => a.id === id) ?? null;
+  }, [expandedIds, allTasks]);
 
   const focusedIndex = useMemo(() => {
     if (focusedId === null) return -1;
@@ -374,6 +381,12 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      <SidePanel
+        assignment={selectedAssignment}
+        onClose={() => setExpandedIds(new Set())}
+        onMetaChange={handleMetaChange}
+        anthropicAvailable={health?.anthropic_available ?? true}
+      />
     </div>
     </ErrorBoundary>
   );
