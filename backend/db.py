@@ -62,3 +62,17 @@ def init_db():
                 expires_at TEXT NOT NULL
             )
         """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS email_tasks (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                due_at TEXT NOT NULL,
+                email_subject TEXT,
+                email_date TEXT,
+                description TEXT,
+                html_url TEXT,
+                source_message_id TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
