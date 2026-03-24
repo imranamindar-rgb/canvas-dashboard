@@ -20,9 +20,12 @@ import { AssignmentTable } from "./components/AssignmentTable";
 import { SearchBar } from "./components/SearchBar";
 import { WeeklyPlan } from "./components/WeeklyPlan";
 import { CommandPalette } from "./components/CommandPalette";
+import { LoginScreen } from "./components/LoginScreen";
 import { SidePanel } from "./components/SidePanel";
 
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(() => !!localStorage.getItem("auth_token"));
+
   const {
     assignments,
     health,
@@ -148,6 +151,10 @@ export default function App() {
     const loader = document.getElementById("app-loader");
     if (loader) loader.remove();
   }, []); // empty deps — run once after first paint
+
+  if (!authenticated) {
+    return <LoginScreen onLogin={() => setAuthenticated(true)} />;
+  }
 
   return (
     <ErrorBoundary>
