@@ -173,62 +173,64 @@ export default function App() {
       />
       <SearchBar query={searchQuery} onChange={setSearchQuery} inputRef={searchInputRef} />
       <SummaryBar stats={stats} />
-      <div className="flex flex-wrap gap-1 px-4 py-2 sm:px-6 items-center">
-        <div className="flex gap-1" role="group" aria-label="Filter by time range">
-          {([
-            { key: null, label: "All" },
-            { key: "today" as const, label: "Due Today" },
-            { key: "week" as const, label: "This Week" },
-          ] as const).map(({ key, label }) => (
+      <div className="sticky top-0 z-30 bg-gray-50 dark:bg-zinc-950 backdrop-blur-sm bg-opacity-90 dark:bg-opacity-90">
+        <div className="flex flex-wrap gap-1 px-4 py-2 sm:px-6 items-center">
+          <div className="flex gap-1" role="group" aria-label="Filter by time range">
+            {([
+              { key: null, label: "All" },
+              { key: "today" as const, label: "Due Today" },
+              { key: "week" as const, label: "This Week" },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={label}
+                onClick={() => setViewFilter(key)}
+                aria-pressed={viewFilter === key}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  viewFilter === key
+                    ? "bg-gray-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto flex gap-1">
             <button
-              key={label}
-              onClick={() => setViewFilter(key)}
-              aria-pressed={viewFilter === key}
+              onClick={() => setCurrentView("dashboard")}
+              aria-pressed={currentView === "dashboard"}
               className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                viewFilter === key
-                  ? "bg-gray-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                currentView === "dashboard"
+                  ? "bg-indigo-600 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
               }`}
             >
-              {label}
+              Dashboard
             </button>
-          ))}
+            <button
+              onClick={() => setCurrentView("plan")}
+              aria-pressed={currentView === "plan"}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                currentView === "plan"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              }`}
+            >
+              Weekly Plan
+            </button>
+          </div>
         </div>
-        <div className="ml-auto flex gap-1">
-          <button
-            onClick={() => setCurrentView("dashboard")}
-            aria-pressed={currentView === "dashboard"}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-              currentView === "dashboard"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-            }`}
-          >
-            Dashboard
-          </button>
-          <button
-            onClick={() => setCurrentView("plan")}
-            aria-pressed={currentView === "plan"}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-              currentView === "plan"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-            }`}
-          >
-            Weekly Plan
-          </button>
-        </div>
+        <StatsBar
+          stats={stats}
+          activeUrgency={urgencyFilter}
+          onSelect={setUrgencyFilter}
+        />
+        <CourseFilter
+          stats={stats}
+          activeCourse={courseFilter}
+          onSelect={setCourseFilter}
+        />
       </div>
-      <StatsBar
-        stats={stats}
-        activeUrgency={urgencyFilter}
-        onSelect={setUrgencyFilter}
-      />
-      <CourseFilter
-        stats={stats}
-        activeCourse={courseFilter}
-        onSelect={setCourseFilter}
-      />
       <AnimatePresence mode="wait">
         {currentView === "dashboard" && (
           <motion.div
