@@ -96,7 +96,7 @@ function DraggableCard({ assignment, weekDates }: { assignment: Assignment; week
       style={style}
       {...listeners}
       {...attributes}
-      className="rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2 shadow-sm cursor-grab active:cursor-grabbing touch-none"
+      className="rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2 shadow-sm cursor-grab active:cursor-grabbing touch-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
       <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${color.bg} ${color.text} ${color.border} border`}>
         {assignment.course_name.length > 8 ? assignment.course_name.slice(0, 8) + "…" : assignment.course_name}

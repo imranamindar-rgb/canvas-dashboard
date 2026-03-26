@@ -27,7 +27,7 @@ export function AssignmentCard({ assignment, checked, onToggleChecked }: Props) 
           setExpanded(!expanded);
         }
       }}
-      className={`cursor-pointer rounded-lg border p-4 transition-colors border-l-[3px] ${URGENCY_BORDER[assignment.urgency]} ${
+      className={`cursor-pointer rounded-lg border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md border-l-[3px] ${URGENCY_BORDER[assignment.urgency]} ${
         CARD_BG[assignment.urgency] || "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800"
       } ${checked ? "opacity-50" : ""}`}
     >

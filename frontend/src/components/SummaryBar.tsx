@@ -27,7 +27,7 @@ export function SummaryBar({ stats }: Props) {
       {metrics.map(({ value, label, accent, bg }) => (
         <div
           key={label}
-          className={`flex flex-col rounded-lg px-4 py-2.5 ${bg}`}
+          className={`flex flex-col rounded-lg px-4 py-2.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${bg}`}
         >
           <motion.span
             key={value}

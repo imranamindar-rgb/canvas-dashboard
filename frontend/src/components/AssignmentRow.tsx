@@ -114,11 +114,11 @@ export function AssignmentRow({ assignment, checked, onToggleChecked, focusedId,
             handleToggleExpand();
           }
         }}
-        className={`cursor-pointer border-b border-gray-100 dark:border-zinc-800 border-l-[3px] ${URGENCY_BORDER[assignment.urgency]} transition-colors ${
+        className={`cursor-pointer border-b border-gray-100 dark:border-zinc-800 border-l-[3px] ${URGENCY_BORDER[assignment.urgency]} transition-all duration-200 ${
           checked ? "opacity-50" : ""
         } ${ROW_BG[assignment.urgency] || ""} ${
           ROW_HOVER[assignment.urgency] || "hover:bg-gray-50"
-        }${isFocused ? " ring-2 ring-inset ring-indigo-500" : ""}`}
+        } hover:shadow-sm${isFocused ? " ring-2 ring-inset ring-indigo-500" : ""}`}
       >
         <td className="px-3 py-3">
           <div className="flex items-center gap-1">
