@@ -2,6 +2,21 @@
 
 A personal dashboard for MIT EMBA students to track Canvas assignments, sync to Google Calendar, and extract tasks from email announcements.
 
+## Architecture
+
+```mermaid
+graph LR
+    Browser[React SPA] -->|REST API| Flask[Flask Backend]
+    Flask -->|Canvas API| Canvas[Canvas LMS]
+    Flask -->|OAuth 2.0| Google[Google APIs]
+    Google --> GCal[Calendar]
+    Google --> Gmail[Gmail]
+    Flask -->|Claude API| Anthropic[Anthropic]
+    Flask -->|SQLite| DB[(dashboard.db)]
+```
+
+The React frontend communicates with the Flask backend over a REST API. The backend integrates with Canvas LMS for assignment data, Google APIs (Calendar and Gmail) via OAuth 2.0, and Anthropic's Claude API for AI-powered task extraction and next-action suggestions. All persistent state is stored in a local SQLite database.
+
 ## One-Click Deploy (Render)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/imranamindar-rgb/canvas-dashboard)
