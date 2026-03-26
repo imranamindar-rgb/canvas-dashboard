@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import logging
+import time
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, request, send_from_directory
@@ -31,8 +32,29 @@ from constants import (
 )
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+import json as _json
+
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_data = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "module": record.module,
+        }
+        if record.exc_info and record.exc_info[0]:
+            log_data["exception"] = self.formatException(record.exc_info)
+        return _json.dumps(log_data)
+
+
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger(__name__)
+
+_start_time = time.time()
 
 app = Flask(__name__)
 cors_origin = os.environ.get("CORS_ORIGIN")
@@ -68,11 +90,16 @@ def health():
     status = "error" if store.error else "ok"
     return jsonify({
         "status": status,
+        "uptime_seconds": round(time.time() - _start_time, 1),
         "last_sync": last,
+        "last_sync_duration_ms": store.last_sync_duration_ms,
         "assignment_count": len(store.get_all()),
+        "email_task_count": len(email_store.get_all()),
         "error": store.error,
         "sync_errors": store.sync_errors,
         "anthropic_available": bool(anthropic_key),
+        "google_authorized": gcal_client.is_authorized() if google_available else False,
+        "canvas_configured": bool(os.environ.get("CANVAS_API_URL")) and bool(os.environ.get("CANVAS_API_TOKEN")),
     })
 
 

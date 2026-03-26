@@ -21,24 +21,30 @@ class AssignmentStore:
         self._error: str | None = None
         self._sync_errors: list[str] = []
         self._lock = threading.Lock()
+        self._last_sync_duration_ms: float | None = None
 
     def sync(self) -> None:
+        t0 = time.time()
         try:
             assignments, sync_errors = fetch_all_assignments(self._api_url, self._api_token)
+            elapsed_ms = (time.time() - t0) * 1000
             with self._lock:
                 self._assignments = {a.id: a for a in assignments}
                 self._last_sync = datetime.now(timezone.utc)
                 self._error = None
                 self._sync_errors = sync_errors
+                self._last_sync_duration_ms = round(elapsed_ms, 1)
             logger.info("Synced %d assignments from Canvas", len(assignments))
             if sync_errors:
                 for err in sync_errors:
                     logger.warning("Canvas course sync error: %s", err)
         except Exception as e:
+            elapsed_ms = (time.time() - t0) * 1000
             logger.exception("Canvas sync failed")
             with self._lock:
                 self._error = str(e)
                 self._sync_errors = []  # clear stale errors on fatal failure
+                self._last_sync_duration_ms = round(elapsed_ms, 1)
 
     def update(self, assignments: list[Assignment]) -> None:
         with self._lock:
@@ -104,6 +110,10 @@ class AssignmentStore:
     @property
     def sync_errors(self) -> list[str]:
         return list(self._sync_errors)
+
+    @property
+    def last_sync_duration_ms(self) -> float | None:
+        return self._last_sync_duration_ms
 
     def start_background_sync(self) -> None:
         def _loop():

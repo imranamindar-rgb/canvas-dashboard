@@ -36,4 +36,9 @@ export interface HealthStatus {
   error: string | null;
   sync_errors: string[];
   anthropic_available: boolean;
+  uptime_seconds?: number;
+  last_sync_duration_ms?: number;
+  email_task_count?: number;
+  google_authorized?: boolean;
+  canvas_configured?: boolean;
 }

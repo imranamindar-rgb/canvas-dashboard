@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAssignments } from "./hooks/useAssignments";
 import { useCalendar } from "./hooks/useCalendar";
@@ -18,10 +18,11 @@ import { CourseFilter } from "./components/CourseFilter";
 import { CalendarBar } from "./components/CalendarBar";
 import { AssignmentTable } from "./components/AssignmentTable";
 import { SearchBar } from "./components/SearchBar";
-import { WeeklyPlan } from "./components/WeeklyPlan";
-import { CommandPalette } from "./components/CommandPalette";
 import { LoginScreen } from "./components/LoginScreen";
-import { SidePanel } from "./components/SidePanel";
+
+const WeeklyPlan = lazy(() => import("./components/WeeklyPlan").then(m => ({ default: m.WeeklyPlan })));
+const CommandPalette = lazy(() => import("./components/CommandPalette").then(m => ({ default: m.CommandPalette })));
+const SidePanel = lazy(() => import("./components/SidePanel").then(m => ({ default: m.SidePanel })));
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(() => !!localStorage.getItem("auth_token"));
@@ -174,17 +175,19 @@ export default function App() {
           googleAuthorized={authorized}
         />
       )}
-      <CommandPalette
-        assignments={allTasks}
-        onSelectAssignment={(id) => {
-          setCurrentView("dashboard");
-          handleToggleExpand(id);
-          setFocusedId(id);
-        }}
-        onRefresh={refresh}
-        onToggleTheme={toggleTheme}
-        onSwitchView={setCurrentView}
-      />
+      <Suspense fallback={null}>
+        <CommandPalette
+          assignments={allTasks}
+          onSelectAssignment={(id) => {
+            setCurrentView("dashboard");
+            handleToggleExpand(id);
+            setFocusedId(id);
+          }}
+          onRefresh={refresh}
+          onToggleTheme={toggleTheme}
+          onSwitchView={setCurrentView}
+        />
+      </Suspense>
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors">
       <Header
         health={health}
@@ -362,13 +365,15 @@ export default function App() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            <WeeklyPlan
-              assignments={allTasks}
-              onSetPlannedDay={planSetDay}
-              onSyncCalendar={syncToCalendar}
-              syncing={syncing}
-              viewFilter={viewFilter}
-            />
+            <Suspense fallback={null}>
+              <WeeklyPlan
+                assignments={allTasks}
+                onSetPlannedDay={planSetDay}
+                onSyncCalendar={syncToCalendar}
+                syncing={syncing}
+                viewFilter={viewFilter}
+              />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>
@@ -397,12 +402,14 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      <SidePanel
-        assignment={selectedAssignment}
-        onClose={() => setExpandedIds(new Set())}
-        onMetaChange={handleMetaChange}
-        anthropicAvailable={health?.anthropic_available ?? true}
-      />
+      <Suspense fallback={null}>
+        <SidePanel
+          assignment={selectedAssignment}
+          onClose={() => setExpandedIds(new Set())}
+          onMetaChange={handleMetaChange}
+          anthropicAvailable={health?.anthropic_available ?? true}
+        />
+      </Suspense>
     </div>
     </ErrorBoundary>
   );
