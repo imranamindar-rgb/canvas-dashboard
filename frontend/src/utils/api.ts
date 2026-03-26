@@ -38,13 +38,12 @@ async function request<T>(
       const res = await fetch(url, fetchOptions);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        // On 401, clear auth tokens and reload to show login screen
+        // On 401, clear auth tokens and notify the app to show login screen
         if (res.status === 401) {
           localStorage.removeItem("auth_token");
           localStorage.removeItem("csrf_token");
-          window.location.reload();
-          // Return a never-resolving promise since we're reloading
-          return new Promise<T>(() => {});
+          window.dispatchEvent(new Event("auth:logout"));
+          throw new ApiError(401, body.error || "Unauthorized");
         }
         throw new ApiError(
           res.status,

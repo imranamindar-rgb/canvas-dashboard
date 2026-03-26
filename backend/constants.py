@@ -1,0 +1,19 @@
+"""Application-wide constants. Import from here, never hardcode elsewhere."""
+
+# Cache and sync
+CACHE_TTL_SECONDS_DEFAULT = 300  # 5 minutes
+POLL_INTERVAL_SECONDS = 300
+
+# Email
+EMAIL_SEARCH_NEWER_THAN_DAYS = 21
+EMAIL_BODY_MAX_CHARS = 50_000
+
+# Rate limiting
+EMAIL_SYNC_RATE_LIMIT = "10 per hour"
+NEXT_ACTION_RATE_LIMIT = "10 per minute"
+
+# Next action
+NEXT_ACTION_MAX_CHARS = 500
+NEXT_ACTION_PROMPT_NAME_MAX = 120
+NEXT_ACTION_PROMPT_DESC_MAX = 2_000
+NEXT_ACTION_PROMPT_COURSE_MAX = 120

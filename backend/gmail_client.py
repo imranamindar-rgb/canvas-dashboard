@@ -10,10 +10,12 @@ from email.utils import parsedate_to_datetime
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
+from constants import EMAIL_SEARCH_NEWER_THAN_DAYS
+
 logger = logging.getLogger(__name__)
 
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token.json")
-SEARCH_QUERY = 'from:"MIT Executive MBA Program" subject:ANNOUNCEMENTS newer_than:21d'
+SEARCH_QUERY = f'from:"MIT Executive MBA Program" subject:ANNOUNCEMENTS newer_than:{EMAIL_SEARCH_NEWER_THAN_DAYS}d'
 
 
 def _get_gmail_service():

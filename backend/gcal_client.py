@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import os
 import logging
 
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 
@@ -26,7 +27,66 @@ URGENCY_COLORS = {
 }
 
 
+def credentials_available() -> bool:
+    """Check if Google OAuth credentials are configured (file or env vars)."""
+    if os.path.exists(CREDENTIALS_FILE):
+        return True
+    if os.environ.get("GOOGLE_CLIENT_JSON"):
+        return True
+    if os.environ.get("GOOGLE_CLIENT_ID") and os.environ.get("GOOGLE_CLIENT_SECRET"):
+        return True
+    return False
+
+
+def _load_client_config() -> dict:
+    """Load OAuth client config from env vars or file, normalized to 'web' type."""
+    raw: dict | None = None
+
+    client_json_str = os.environ.get("GOOGLE_CLIENT_JSON")
+    if client_json_str:
+        raw = json.loads(client_json_str)
+    elif os.environ.get("GOOGLE_CLIENT_ID") and os.environ.get("GOOGLE_CLIENT_SECRET"):
+        raw = {
+            "web": {
+                "client_id": os.environ["GOOGLE_CLIENT_ID"],
+                "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [],
+            }
+        }
+    elif os.path.exists(CREDENTIALS_FILE):
+        with open(CREDENTIALS_FILE) as f:
+            raw = json.load(f)
+    else:
+        raise RuntimeError("No Google credentials configured")
+
+    # Normalize "installed" type to "web" type for redirect flow
+    if raw and "installed" in raw and "web" not in raw:
+        info = raw["installed"]
+        raw = {
+            "web": {
+                "client_id": info["client_id"],
+                "client_secret": info["client_secret"],
+                "auth_uri": info.get("auth_uri", "https://accounts.google.com/o/oauth2/auth"),
+                "token_uri": info.get("token_uri", "https://oauth2.googleapis.com/token"),
+                "redirect_uris": info.get("redirect_uris", []),
+            }
+        }
+
+    return raw
+
+
 def is_authorized() -> bool:
+    # Support token stored in env var (for Render persistence across restarts)
+    token_json_env = os.environ.get("GOOGLE_TOKEN_JSON")
+    if token_json_env and not os.path.exists(TOKEN_FILE):
+        try:
+            with open(TOKEN_FILE, "w") as f:
+                f.write(token_json_env)
+        except Exception:
+            logger.exception("Failed to write token from GOOGLE_TOKEN_JSON env var")
+
     if not os.path.exists(TOKEN_FILE):
         return False
     try:
@@ -43,20 +103,30 @@ def is_authorized() -> bool:
     return False
 
 
-def authorize() -> dict:
-    if not os.path.exists(CREDENTIALS_FILE):
-        return {
-            "authorized": False,
-            "error": "Missing google_credentials.json. Download OAuth Desktop credentials from Google Cloud Console and save as backend/google_credentials.json",
-        }
+def get_auth_url(redirect_uri: str) -> str:
+    """Generate OAuth authorization URL for the web redirect flow."""
+    client_config = _load_client_config()
+    flow = Flow.from_client_config(client_config, scopes=SCOPES, redirect_uri=redirect_uri)
+    auth_url, _ = flow.authorization_url(
+        access_type="offline",
+        prompt="consent",
+        include_granted_scopes="true",
+    )
+    return auth_url
+
+
+def handle_callback(code: str, redirect_uri: str) -> dict:
+    """Exchange OAuth authorization code for tokens and save them."""
     try:
-        flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-        creds = flow.run_local_server(port=8090, prompt="consent")
+        client_config = _load_client_config()
+        flow = Flow.from_client_config(client_config, scopes=SCOPES, redirect_uri=redirect_uri)
+        flow.fetch_token(code=code)
+        creds = flow.credentials
         with open(TOKEN_FILE, "w") as f:
             f.write(creds.to_json())
         return {"authorized": True}
     except Exception as e:
-        logger.exception("Google OAuth failed")
+        logger.exception("OAuth callback failed")
         return {"authorized": False, "error": str(e)}
 
 

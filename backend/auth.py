@@ -13,7 +13,6 @@ from db import cursor
 
 logger = logging.getLogger(__name__)
 
-PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 TOKEN_TTL_DAYS = 7
 
 
@@ -25,11 +24,16 @@ def _cleanup_expired():
 
 
 def authenticate(password: str) -> dict | tuple:
-    """Validate password and create session."""
-    if not PASSWORD:
-        return {"error": "DASHBOARD_PASSWORD not configured"}, 500
+    """Validate password and create session.
 
-    if not secrets.compare_digest(password, PASSWORD):
+    When DASHBOARD_PASSWORD is not set (dev mode), return static dev tokens
+    so the frontend can operate without a real login flow.
+    """
+    dashboard_password = os.environ.get("DASHBOARD_PASSWORD")
+    if not dashboard_password:
+        return {"token": "dev", "csrf_token": "dev", "expires_at": "2099-12-31T00:00:00Z"}
+
+    if not secrets.compare_digest(password, dashboard_password):
         return {"error": "invalid_password"}, 401
 
     _cleanup_expired()
@@ -62,7 +66,7 @@ def require_auth(f):
     """Decorator: require valid Bearer token. Skip if DASHBOARD_PASSWORD is not set."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not PASSWORD:
+        if not os.environ.get("DASHBOARD_PASSWORD"):
             return f(*args, **kwargs)
 
         auth_header = request.headers.get("Authorization", "")

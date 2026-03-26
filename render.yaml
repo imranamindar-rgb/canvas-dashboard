@@ -11,7 +11,7 @@ services:
       - key: CANVAS_API_TOKEN
         sync: false
       - key: ANTHROPIC_API_KEY
-        sync: false
+        value: ""
       - key: CACHE_TTL_SECONDS
         value: "300"
       - key: GUNICORN_RUNNING
@@ -20,3 +20,7 @@ services:
         value: "22"
       - key: PYTHON_VERSION
         value: "3.11.0"
+      - key: GOOGLE_CLIENT_JSON
+        sync: false
+      - key: GOOGLE_TOKEN_JSON
+        sync: false

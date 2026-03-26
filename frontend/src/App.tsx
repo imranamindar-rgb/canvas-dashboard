@@ -152,6 +152,15 @@ export default function App() {
     if (loader) loader.remove();
   }, []); // empty deps — run once after first paint
 
+  // Listen for auth:logout events dispatched by api.ts on 401 responses
+  useEffect(() => {
+    function handleLogout() {
+      setAuthenticated(false);
+    }
+    window.addEventListener("auth:logout", handleLogout);
+    return () => window.removeEventListener("auth:logout", handleLogout);
+  }, []);
+
   if (!authenticated) {
     return <LoginScreen onLogin={() => setAuthenticated(true)} />;
   }

@@ -86,7 +86,8 @@ def test_email_status_route(client):
     res = client.get("/api/email/status")
     assert res.status_code == 200
     data = res.get_json()
-    assert "authorized" in data
+    # When google_available=False (no credentials in test env), response
+    # has connected/available keys; last_sync is present in both code paths.
     assert "last_sync" in data
 
 def test_email_tasks_route(client):
@@ -118,6 +119,7 @@ def test_refresh_returns_error_on_failure(client, monkeypatch):
 def test_email_sync_error_does_not_leak(client, monkeypatch):
     """Verify /api/email/sync errors don't expose internal details."""
     import app as app_module
+    monkeypatch.setattr(app_module, "google_available", True)
     monkeypatch.setattr(app_module, "anthropic_key", "fake-key")
     monkeypatch.setattr(app_module, "fetch_latest_announcements",
                         lambda: {"message_id": "test", "subject": "test", "date": None, "body": "test"})
@@ -128,3 +130,21 @@ def test_email_sync_error_does_not_leak(client, monkeypatch):
     assert resp.status_code == 500
     data = resp.get_json()
     assert "API key invalid" not in data.get("error", "")
+
+
+def test_cors_disabled_when_no_env_var(client):
+    """When CORS_ORIGIN is not set, no Access-Control-Allow-Origin header on requests."""
+    resp = client.get("/api/health", headers={"Origin": "http://localhost:5173"})
+    assert "Access-Control-Allow-Origin" not in resp.headers
+
+
+@patch.dict("os.environ", {"CORS_ORIGIN": "http://localhost:5173"})
+def test_cors_enabled_when_env_var_set():
+    """When CORS_ORIGIN is set, CORS headers are present."""
+    import importlib
+    import app as app_module
+    importlib.reload(app_module)
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as c:
+        resp = c.get("/api/health", headers={"Origin": "http://localhost:5173"})
+    assert "Access-Control-Allow-Origin" in resp.headers
