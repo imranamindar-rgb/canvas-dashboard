@@ -168,13 +168,16 @@ def gcal_auth():
 def gcal_authorize():
     if not google_available:
         return jsonify({"error": "Google integration not configured. Set GOOGLE_CLIENT_JSON env var on Render, or add google_credentials.json locally."}), 400
-    redirect_uri = request.url_root.rstrip("/") + "/api/gcal/callback"
-    auth_url = gcal_client.get_auth_url(redirect_uri)
-    return jsonify({"auth_url": auth_url})
+    try:
+        redirect_uri = request.url_root.rstrip("/") + "/api/gcal/callback"
+        auth_url = gcal_client.get_auth_url(redirect_uri)
+        return jsonify({"auth_url": auth_url})
+    except Exception as e:
+        logger.exception("Failed to generate Google auth URL")
+        return jsonify({"error": f"Failed to generate auth URL: {e}"}), 500
 
 
 @app.route("/api/gcal/callback")
-@require_auth
 def gcal_callback():
     code = request.args.get("code")
     if not code:
