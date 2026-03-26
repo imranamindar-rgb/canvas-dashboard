@@ -16,9 +16,10 @@ def pytest_configure(config):
 
 
 def pytest_runtest_setup(item):
-    """Clean email_tasks table before each test to ensure isolation."""
+    """Clean transient tables before each test to ensure isolation."""
     try:
         with db_module.cursor() as cur:
             cur.execute("DELETE FROM email_tasks")
+            cur.execute("DELETE FROM auth_sessions")
     except Exception:
         pass
